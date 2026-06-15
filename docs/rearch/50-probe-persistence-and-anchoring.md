@@ -200,7 +200,14 @@ proven in the golden baseline), not a boot-resident hook. The facet + its `bin/f
 ## The module is a two-facet facilitation layer (2026-06-14)
 Per the bringup intent, `oplus_cam_probes` facilitates **hooks AND binary-patch overlays** — one module,
 two facets, both INERT-until-configured and fail-open:
-- **HOOKS** (`service.sh`, late_start) — boot-persistent frida injection. Live + validated (above).
+- **HOOKS** (`service.sh`, late_start) — boot-persistent frida injection. **Default = facilitation-only
+  (empty `probes.conf` resident set), decided 2026-06-15.** The module *facilitates* injection (frida-inject
+  + built bundles) but does NOT auto-run a probe set at boot: injecting the heavy `app` bundle (preview-hot-
+  path / EDR / per-frame hooks) resident (a) instruments the daily-driver camera continuously and (b)
+  DOUBLE-instruments during a host-frida capture — which stalled a freeze-gateb capture and froze the preview.
+  Step-through proved no single probe freezes alone; the aggregate-at-boot + capture overlap does. Captures
+  attach probes on-demand via host frida (proven by the golden full-baseline). Opt into a resident set only
+  for a bench session (never during a capture), and keep it light — see `probes.conf`.
 - **PATCHES** (`post-fs-data.sh` → `lib/mount_patches.sh`) — systemless **bind-mount** replacement of
   validated vendor/odm blobs before HAL load. **Engine validated on-device** (synthetic `/data` target):
   `BOUND` replaces content, SELinux context copied from the target, the **replace-existing-only guard

@@ -80,61 +80,15 @@
       var n = (typeof count.toNumber === 'function') ? count.toNumber() : Number(count);
       if (n < 0 || n > 64) { console.log('[BCSL] ' + tag + ' StreamSet size=' + n + ' (suspicious, skip walk)'); return false; }
       console.log('[BCSL] ' + tag + ' StreamSet@' + ss + ' size=' + n);
-      // allocate scratch for operator[] out-param sp<> (16 bytes: ptr + refcount)
-      var outSp = Memory.alloc(16);
-      for (var i = 0; i < n; i++) {
-        try {
-          outSp.writeByteArray([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]);  // frida-17: instance method (static Memory.writeByteArray was removed — "not a function")
-          fnAt(outSp, ss, ptr(i));
-          var stream = null;
-          try { stream = outSp.readPointer(); } catch(e2) {}
-          if (!stream || stream.isNull()) { console.log('[BCSL] ' + tag + '   stream[' + i + '] sp=null (operator[] wrote null)'); continue; }
-          // Dereference the virtual base: ifc = stream + *(long*)(*stream - 0x198)
-          // This is the virtual-base thunk for the ICameraDeviceUser interface.
-          var ifc = null;
-          try {
-            var vtbl = stream.readPointer();
-            var thunk = vtbl.sub(0x198).readPointer();
-            ifc = stream.add(thunk);
-          } catch(e3) { ifc = stream; } // if thunk read fails, fall back to stream directly
-          // Virtual getters — READ-ONLY, called as const methods (this=ifc).
-          // HIGH confidence slots (doc-35 ABI, verified against libcameraservice vtable layout):
-          //   vtbl[ifc]+0x20 = getWidth() -> int
-          //   vtbl[ifc]+0x28 = getHeight() -> int
-          //   vtbl[ifc]+0x30 = getFormat() -> int
-          var width = '?', height = '?', format = '?';
-          try {
-            var ifcVtbl = ifc.readPointer();
-            var fWidth  = new NativeFunction(ifcVtbl.add(0x20).readPointer(), 'int', ['pointer']);
-            var fHeight = new NativeFunction(ifcVtbl.add(0x28).readPointer(), 'int', ['pointer']);
-            var fFormat = new NativeFunction(ifcVtbl.add(0x30).readPointer(), 'int', ['pointer']);
-            width  = fWidth(ifc);
-            height = fHeight(ifc);
-            format = fFormat(ifc);
-          } catch(e4) { /* leave ?, don't crash */ }
-          // MEDIUM confidence: vtbl+0xa0 returns a HAL-stream-struct ptr; sub-offsets unwitnessed beyond +0x14.
-          // Hexdump first 0x40 bytes for later mapping — no sub-field assumptions.
-          var halHex = '(getter-miss)';
-          try {
-            var ifcVtbl2 = ifc.readPointer();
-            var fHal = new NativeFunction(ifcVtbl2.add(0xa0).readPointer(), 'pointer', ['pointer']);
-            var halPtr = fHal(ifc);
-            if (halPtr && !halPtr.isNull()) {
-              halHex = safeHexN(halPtr, 0x40);
-            } else {
-              halHex = '(null)';
-            }
-          } catch(e5) { /* leave (getter-miss) */ }
-          console.log('[BCSL] ' + tag + '   stream[' + i + '] @' + stream +
-                      ' width=' + width + ' height=' + height + ' format=0x' + (typeof format === 'number' ? format.toString(16) : format) +
-                      (width === 7680 && height === 4320 ? '  <<< 8K STREAM' : '') +
-                      '\n             hal+0xa0 hex[0x40]=' + halHex + '  (MEDIUM confidence; map +0x14 onwards via future RE)');
-        } catch(eStream) {
-          console.log('[BCSL] ' + tag + '   stream[' + i + '] read err: ' + eStream + ' — bailing walk');
-          return false;
-        }
-      }
-      return true;
+      // PER-STREAM EXTRACTION DISABLED (2026-06-15, task #27). The operator[] sp<> out-param ABI + the
+      // virtual-base thunk (-0x198) are UNCONFIRMED and the deref FAULTS on stream[0] (access violation).
+      // Frida catches the SIGSEGV, but it lands on cameraserver's configure_streams HOT PATH and recurs on
+      // every configure — wasteful churn and a stall risk under a full capture's repeated configures (this is
+      // the regression that contributed to the freeze-gateb hang). So we report the VALIDATED stream COUNT
+      // only and do NOT touch stream objects. Re-enable the per-stream walk once #27 confirms the offsets
+      // against a live stream object (dump raw stream ptr + *stream vtable first). size=N is the useful signal
+      // for the 8K -38 diff anyway (LOS vs OOS stream count/shape).
+      return true;   // size already logged above; per-stream fields pending #27
     } catch(eWalk) {
       console.log('[BCSL] ' + tag + ' StreamSet walk err: ' + eWalk);
       return false;
