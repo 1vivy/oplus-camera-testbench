@@ -113,13 +113,27 @@ else
   echo "single-side (no LOS ref): r4/strace are pure differs — raw artifacts only" > "$DEST/parse_r4.txt"
 fi
 
+# --- [4b] frida coverage gate ---
+# A GOLDEN baseline "needs it all" — the frida lanes must have ARMED + CAPTURED, not merely "run". A probe
+# can exit 0 with a 0-byte/banner-only log (the attach-race / frida-17 static-API silent-fail class); that
+# is invisible to CORE=ran. frida_coverage.py opens every expected probe's log and classifies it
+# ARMED/NODATA(hook-only)/DEAD/MISSING per the condition's EXTRA_PROBES + r3/r4 kits. DEAD or MISSING ⇒ GAP.
+echo; echo "== [4b] frida coverage =="
+FRIDA="error"; FRIDA_OK=0
+if python3 "$OBS/campaign/frida_coverage.py" "$REPO" "$COND" > "$DEST/frida_coverage.txt" 2>&1; then FRIDA_OK=1; fi
+FRIDA=$(grep -oE 'FRIDA_COVERAGE=[0-9]+/[0-9]+ verdict=[A-Z]+' "$DEST/frida_coverage.txt" | tail -1)
+[ -z "$FRIDA" ] && FRIDA="error(see frida_coverage.txt)"
+echo "   frida: $FRIDA"
+
 # --- [5] verdict ---
+# GOLDEN now requires frida coverage FULL (FRIDA_OK=1) on top of preflight/modes/core/signal — so a silently
+# no-op'd probe downgrades the baseline to PARTIAL instead of masquerading as golden.
 VERDICT=PARTIAL
-[ "$PF" = ready ] && [ "$GATE" = PASS ] && [ "$CORE" = ran ] && [ "$SIGNAL" = all-stable ] && VERDICT=GOLDEN
+[ "$PF" = ready ] && [ "$GATE" = PASS ] && [ "$CORE" = ran ] && [ "$SIGNAL" = all-stable ] && [ "$FRIDA_OK" = 1 ] && VERDICT=GOLDEN
 [ "$CORE" = failed ] && VERDICT=PARTIAL
 cat > "$DEST/verdict.json" <<EOF
 { "condition":"$COND", "mode":"$MODE", "preflight":"$PF", "modes_gate":"$GATE",
-  "lanes":{ "core":"$CORE", "strace":"$STRACE" }, "signal":"$SIGNAL",
+  "lanes":{ "core":"$CORE", "strace":"$STRACE" }, "signal":"$SIGNAL", "frida":"$FRIDA",
   "los_ref":"${LOS_REF:-}", "verdict":"$VERDICT" }
 EOF
 {
@@ -134,11 +148,12 @@ EOF
   echo "| full_baseline (lanes 1-4) | $CORE |"
   echo "| strace lane | $STRACE |"
   echo "| signal (parse_condition) | $SIGNAL |"
+  echo "| frida coverage | $FRIDA |"
   echo
   echo "## Artifacts (raw lanes — indexed, not duplicated)"
   echo '```'; cat "$DEST/links.txt"; echo '```'
   echo
-  echo "Parsed: parse_condition.txt, parse_r3.txt$( [ -n "$LOS_REF" ] && echo ', parse_r4.txt, parse_strace.txt')."
+  echo "Parsed: parse_condition.txt, frida_coverage.txt, parse_r3.txt$( [ -n "$LOS_REF" ] && echo ', parse_r4.txt, parse_strace.txt')."
   echo "Resolve upward to root via the attribution tree (docs/interop-tree/ + tables/attribution-matrix.md)."
 } > "$DEST/BASELINE.md"
 

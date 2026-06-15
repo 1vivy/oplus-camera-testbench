@@ -398,6 +398,20 @@ hookJava();
 var LIB = 'libgui.so';
 var IMAGE_BASE = 0x100000; // doc-49 offsets are image_base 0x100000; subtract for module-relative.
 
+// OTA-resilient resolver (doc-50). Bundled: globalThis.Anchor; standalone: -l tools/frida/_anchor.js first.
+// Each setEdr* target has a recorded mangled symbol (export + symtab rungs, durable) AND a doc-49 offset
+// (module-relative = off - IMAGE_BASE) used as the fallback. BuildID pinned to device (.300/V16.1.0) value
+// read via readelf (authoritative).
+var GUI_BID = '2d90a5b3f5be5b74cc33c4a6d0d029b6';
+function anchorResolve(spec) {
+  if (typeof Anchor !== 'undefined' && Anchor.resolve) return Anchor.resolve(spec);
+  // standalone fallback (no _anchor.js loaded): frida-17 instance export, else the declared offset.
+  var m = Process.findModuleByName(spec.lib); if (!m) return null;
+  if (spec.export) { try { var p = m.findExportByName(spec.export); if (p) return p; } catch (e) {} }
+  if (spec.fallback && spec.fallback.off != null) { try { return m.base.add(spec.fallback.off); } catch (e) {} }
+  return null;
+}
+
 // OplusEdrViewTransform (92 bytes / 0x5C) — doc-49 §"OplusEdrViewTransform struct":
 //   +0x00 int32 field0   +0x04 int32 field1   +0x08 int32 field2
 //   +0x0C Rect region (4x int32: left,top,right,bottom)
@@ -452,8 +466,6 @@ var NATIVE_HOOKS = [
   }
 ];
 
-// frida-17: static Module.*ExportByName removed -> instance method (doc-50)
-function gx(lib, sym){ var m = Process.findModuleByName(lib); return m ? m.findExportByName(sym) : null; }
 function hexptr(p) { return p ? p.toString() : 'null'; }
 
 // Read the OplusEdrViewTransform (0x5C) at a pointer and pretty-print field0/1/2,
@@ -567,18 +579,18 @@ function fpFromContext(ctx, n) {
 }
 
 function resolveNative(m, h) {
-  // 1) Prefer the mangled exported symbol (robust across image-base changes).
-  try {
-    var byName = (m.findExportByName && m.findExportByName(h.sym)) ||
-                 gx(LIB, h.sym);
-    if (byName) return { addr: byName, via: 'symbol' };
-  } catch (e) {}
-  // 2) Fall back to doc-49 offset-attach (image_base 0x100000 -> module-relative).
-  try {
-    return { addr: m.base.add(h.off - IMAGE_BASE), via: 'offset(0x' + h.off.toString(16) + '-imgbase)' };
-  } catch (e) {
-    return null;
-  }
+  // Route through Anchor: export (mangled sym) -> symtab (same) -> pattern(none) -> fallback offset.
+  // The fallback off is module-relative (doc-49 image_base 0x100000 -> off - IMAGE_BASE).
+  var spec = {
+    lib: LIB, name: 'SurfaceComposerClient::Transaction::' + h.name,
+    export: h.sym,
+    symtab: h.sym,
+    fallback: { buildid: GUI_BID, off: h.off - IMAGE_BASE }
+  };
+  var addr = anchorResolve(spec);
+  if (!addr) return null;
+  // Anchor already logs WHICH rung hit ([anchor] HIT ... via export/symtab/fallback); record a coarse tag here.
+  return { addr: addr, via: (typeof Anchor !== 'undefined' && Anchor.resolve) ? 'anchor' : 'standalone' };
 }
 
 var nativeHooked = false;
@@ -755,9 +767,12 @@ start();
 (function(){ try {
 /*
  * tools/frida/probe_sendinputdata_gate.js — TIER-1 freeze Gate-B probe (doc-44 UPDATE 5-7 / doc-47 / 50).
- * APSPreviewManager::sendInputData(AlgoPreviewProcessData*, ModeConfig*) gates the per-frame release path on
- * AlgoPreviewProcessData->InitParamters[+0x378][0] == 1. If that gate is ever false / the pointer is null,
- * the input buffer is never returned → feeds the previewManagerRoutine starvation (probe_aps_preview_routine).
+ * APSPreviewManager::sendInputData(AlgoPreviewProcessData*, ModeConfig*) — checks per-frame input-params holder.
+ * arg1 (AlgoPreviewProcessData*) at +0x370 holds a shared_ptr<APSParamsHolder> (the per-frame input-params
+ * holder carrying keys doDeinit/is_fluency_sampling/input_buffer_dataspace). Non-null = holder present.
+ * The real gating is key/value-driven inside APSParamsHolder — future live trace: get<int> @0x2341d8,
+ * get<bool> @0x23fe68 in libAlgoProcess. If the holder is null the input buffer cannot be released →
+ * feeds the previewManagerRoutine starvation (probe_aps_preview_routine).
  *
  * Resolves by EXPORTED symbol (16.0.8.300 libAlgoProcess.so @0x1b534c; arg1 = AlgoPreviewProcessData*).
  * Self-sufficient (Anchor when bundled, else frida-17 instance API).
@@ -771,7 +786,9 @@ start();
     symtab: '_ZN17APSPreviewManager13sendInputDataEPN7android22AlgoPreviewProcessDataEP10ModeConfig',
     fallback: { buildid: '2217d555bacb9e8f9c2a81a609ca9f47', off: 0x1b534c }
   };
-  var OFF_INITPARAMS = 0x378;   // AlgoPreviewProcessData -> InitParamters pointer (doc-44)
+  // +0x370 = shared_ptr<APSParamsHolder> in AlgoPreviewProcessData (RE-confirmed; +0x378 is next member,
+  // only touched in a dead stack-guard epilogue — NOT the holder, reads NULL on live preview).
+  var OFF_PARAMS_HOLDER = 0x370;   // AlgoPreviewProcessData -> shared_ptr<APSParamsHolder> (doc-44 CORRECTED)
 
   function resolve(spec){
     if (typeof Anchor !== 'undefined' && Anchor.resolve) return Anchor.resolve(spec);
@@ -783,22 +800,28 @@ start();
   var p = resolve(SPEC);
   if (!p) { console.log('[SENDINPUT] MISS — symbol unresolved (wrong process?)'); return; }
 
-  var calls = 0, gateOpen = 0, gateClosed = 0, gateNull = 0;
+  var calls = 0, holderPresent = 0, holderNull = 0;
   Interceptor.attach(p, {
     onEnter: function(a){
       calls++;
       try {
-        var data = a[1];                                   // AlgoPreviewProcessData*
-        var ip = data.add(OFF_INITPARAMS).readPointer();   // InitParamters*
-        if (ip.isNull()) { gateNull++; if (gateNull <= 5) console.log('[SENDINPUT] call#' + calls + ' InitParamters(+0x378)=NULL — gate cannot pass'); return; }
-        var g = ip.readU32();                              // InitParamters[0]
-        if (g === 1) { gateOpen++; if (gateOpen <= 3) console.log('[SENDINPUT] call#' + calls + ' InitParamters[0]=1 (gate OPEN)'); }
-        else { gateClosed++; console.log('[SENDINPUT] call#' + calls + ' InitParamters[0]=' + g + ' (gate CLOSED — release-callback skipped; starvation cause)'); }
+        var data = a[1];                                        // AlgoPreviewProcessData*
+        var holder = data.add(OFF_PARAMS_HOLDER).readPointer(); // shared_ptr<APSParamsHolder>.get() (first word)
+        if (holder.isNull()) {
+          holderNull++;
+          if (holderNull <= 5) console.log('[SENDINPUT] call#' + calls + ' APSParamsHolder(+0x370)=NULL — input-params holder absent; buffer release path blocked');
+        } else {
+          holderPresent++;
+          // Gate is key/value-driven inside APSParamsHolder (keys: doDeinit, is_fluency_sampling,
+          // input_buffer_dataspace). Hook get<int>@0x2341d8 / get<bool>@0x23fe68 in libAlgoProcess
+          // for the actual gate values. Here just confirm holder is present.
+          if (holderPresent <= 3) console.log('[SENDINPUT] call#' + calls + ' APSParamsHolder(+0x370)=' + holder + ' (present — key/value gate inside holder)');
+        }
       } catch(e){ console.log('[SENDINPUT] read err: ' + e.message); }
     }
   });
 
-  setInterval(function(){ if (calls) console.log('[SENDINPUT] TALLY calls=' + calls + ' open=' + gateOpen + ' closed=' + gateClosed + ' null=' + gateNull); }, 3000);
+  setInterval(function(){ if (calls) console.log('[SENDINPUT] TALLY calls=' + calls + ' holderPresent=' + holderPresent + ' holderNull=' + holderNull); }, 3000);
   console.log('[SENDINPUT] armed @ ' + p);
 })();
 

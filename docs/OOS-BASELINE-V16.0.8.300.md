@@ -13,8 +13,12 @@ supersedes-as-denominator: OOS-BL-001 (16.0.7) — same harness, newer point rel
 This doc's original capture (`reference/ab/oos-photo-v16.0.8.300/`) was the framework+graph denominator. The
 full **golden baseline** now lives at **`reference/baseline/full-baseline/`** — produced in one command by
 `tools/observability/capture/baseline.sh full-baseline`, which composes preflight → validate_modes gate →
-all four lanes (framework+graph + provider/app frida probes + r3-gralloc + r4-OEM) → strace → parse → a
-top-level verdict. Result: **`VERDICT=GOLDEN`** (preflight ready, modes PASS, lanes ran, parse ALL-STABLE).
+all four lanes (framework+graph + provider/app frida probes + r3-gralloc + r4-OEM) → strace → parse →
+**frida-coverage gate** → a top-level verdict. Result: **`VERDICT=GOLDEN`** (preflight ready, modes PASS,
+lanes ran, parse ALL-STABLE, **frida 13/13 FULL**). GOLDEN now *requires* the frida probes to have armed +
+captured (`frida_coverage.py`) — a silently no-op'd probe (0-byte/banner-only, the attach-race class)
+downgrades to PARTIAL instead of passing as golden. So "golden" here means the frida hooks are included AND
+proven live, not merely that the lanes executed.
 - Manifest + roll-up: `reference/baseline/full-baseline/{BASELINE.md,verdict.json,PREFLIGHT.md}`.
 - Raw lanes (indexed, not duplicated): `reference/{campaign,r3,r4,strace}/full-baseline/`.
 - Stable signal across both runs: fusion-graph 21912→27974, hdr_detected present, copyMetadata-UAF False,
@@ -40,7 +44,12 @@ Because `ab_capture.sh` tags by `ro.build.version.oplusrom`, the on-device artif
 `obs_ab_V16.1.0_1781477186`. Pulled into a version-explicit repo dir to avoid clobbering OOS-BL-001:
 `reference/ab/oos-photo-v16.0.8.300/`.
 
-## Procedure (as run)
+## Procedure (as run) — the framework+graph sub-denominator (NOT the full golden)
+> The steps below produced the **framework+graph denominator only** (`reference/ab/oos-photo-v16.0.8.300/`):
+> logcat + dumpsys + SF + backtraces, **no frida**. The full **golden** baseline (frida-inclusive) is the
+> `full-baseline` run at the top — `baseline.sh` composes these same levers PLUS all provider/app/r3/r4 frida
+> probes, and now gates GOLDEN on frida coverage (`frida_coverage.py`, 13/13 FULL for this build). Read this
+> section as "how the denominator layer is captured," not "how the golden was captured."
 1. `adb push tools/observability/{enable,capture} /data/local/tmp/{obs-enable,obs-capture}`
 2. `su -c 'sh /data/local/tmp/obs-enable/00_enable_all.sh'` — max-verbosity, reversible levers only.
 3. `su -c 'sh /data/local/tmp/obs-capture/ab_capture.sh photo'` — deterministic photo cycle via `ui/drive_cycle.sh`.
@@ -81,14 +90,21 @@ From `logcat_all.txt` (100,883 lines, 21 MB — verbosity levers live):
 These four graph nodes are the **stock-only tells** from AB-RUNBOOK.md row 1: LOS shows none → graph-selection
 divergence. Their heavy presence here confirms a healthy stock pipeline.
 
-## Not captured this run (need frida / separate kits — same as OOS-BL-001)
-- `com.qti.stats_control.hdr_detected` rc — needs `frida/observe_getmetadata.js` (not a logcat tag; 0 here as expected).
-- `onImageAvailable` flow — frida probe, not a logcat tag (0 here as expected).
-- StaticSettings dump (`selectSHDRAutoExposureUsecase` +0x6a28/+0x6a18) — `frida/dump_camxsettings.js`.
-- OEM binder txns 10000–10022 + ExtImpl — `r4-oem-transact/` kit.  Gralloc P010 — `r3-gralloc/` kit.
+## Not captured in THIS denominator run (frida / separate kits) — but COVERED by the golden full-baseline
+This frida-less `ab` dir does not carry the layers below. **The golden `full-baseline` run DOES** — verified
+by `reference/baseline/full-baseline/frida_coverage.txt` (**13/13 FULL**, 0 DEAD/0 MISSING):
+- `com.qti.stats_control.hdr_detected` — golden captured it via `probe_aec_hdrdetect.js`
+  (`[HDRTrigger] ran (hdr_detected computed this frame)`, ARMED). (`observe_getmetadata.js` is NODATA in the
+  app pid — libAlgoProcess loads in the *provider*, not the app — so hdr_detected is read from the aec probe.)
+- preview-delivery / `onImageAvailable` flow — golden `trace_preview_delivery.js` ARMED (live getOplus/acq counters).
+- StaticSettings dump (`selectSHDRAutoExposureUsecase` +0x6a28/+0x6a18) — golden `dump_camxsettings.js` ARMED
+  (correctly ABORTed its write on an offset mismatch — RE refinement pending, see VERIFICATION-LEDGER).
+- OEM binder txns 10000–10022 + ExtImpl — golden `r4-oem-transact` (`ext_server` ARMED, hooks all true).
+  Gralloc P010 — golden `r3-gralloc` (`lockPlanes rc=0 planeCount=3` + plane data, ARMED).
 
-Run those frida-side kits on this same unit when an A/B needs the metadata/stats layer; this dir is the
-framework+graph denominator.
+So: this `ab` dir is the **framework+graph denominator** (a sub-layer); the **frida-inclusive golden** is
+`reference/baseline/full-baseline/`. The two are not the same artifact — do not read "no frida here" as "the
+golden has no frida."
 
 ## Reversal
 All levers are setprop/overlay only (reversible). To restore stock-quiet state: clear

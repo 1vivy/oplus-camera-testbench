@@ -1,3 +1,4 @@
 { "condition":"full-baseline", "mode":"photo", "preflight":"ready", "modes_gate":"PASS",
   "lanes":{ "core":"ran", "strace":"ran" }, "signal":"all-stable",
+  "frida":"FRIDA_COVERAGE=13/13 verdict=FULL",
   "los_ref":"", "verdict":"GOLDEN" }

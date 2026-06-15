@@ -45,6 +45,24 @@ var OFF_GET_PLANE_LAYOUT = 0x12127c; // APSGrallocUtils::getPlaneLayout(this,buf
 var OFF_LOCK_PLANES_DESC = 0x1c96f8; // camApsBufferLockPlanes(buf) -> ApsBufferDesc*
 var OFF_P010_NEON = 0x4fc094;        // APSFormatConverterNeon::p010LSB2MSBNeon(dst,src,...)
 
+// OTA-resilient resolver (doc-50). Bundled: globalThis.Anchor; standalone: -l tools/frida/_anchor.js first.
+// These three blob fns are LOCAL (Ghidra file offsets, no mangled symbol name or prologue recorded in this
+// session's notes), so only the offset fallback rung applies. No GNU BuildID recorded for the offsets here,
+// so the fallback is left UN-pinned (resolve() still uses it, but cannot refuse on OTA drift).
+var ALGO_LIB = 'libAlgoProcess.so';
+function anchorResolve(spec) {
+  if (typeof Anchor !== 'undefined' && Anchor.resolve) return Anchor.resolve(spec);
+  var m = Process.findModuleByName(spec.lib); if (!m) return null;
+  if (spec.export) { try { var p = m.findExportByName(spec.export); if (p) return p; } catch (e) {} }
+  if (spec.fallback && spec.fallback.off != null) { try { return m.base.add(spec.fallback.off); } catch (e) {} }
+  return null;
+}
+// BuildID pinned to device (.300/V16.1.0) value read via readelf (authoritative).
+var ALGO_BID = '2217d555bacb9e8f9c2a81a609ca9f47';
+var SPEC_GET_PLANE_LAYOUT = { lib: ALGO_LIB, name: 'APSGrallocUtils::getPlaneLayout', fallback: { buildid: ALGO_BID, off: OFF_GET_PLANE_LAYOUT } };
+var SPEC_LOCK_PLANES_DESC = { lib: ALGO_LIB, name: 'camApsBufferLockPlanes',          fallback: { buildid: ALGO_BID, off: OFF_LOCK_PLANES_DESC } };
+var SPEC_P010_NEON        = { lib: ALGO_LIB, name: 'APSFormatConverterNeon::p010LSB2MSBNeon', fallback: { buildid: ALGO_BID, off: OFF_P010_NEON } };
+
 function ts() { return '[' + (Date.now() % 1000000) + ']'; }
 function hx(p) { return p ? p.toString() : 'null'; }
 function rd64(p, off) { try { return p.add(off).readU64(); } catch (e) { return null; } }
@@ -207,8 +225,9 @@ function dumpPlaneLayouts(tag, key, vecPtr) {
 //     Body: *Cb = lumaBase + PlaneLayout.offsetInBytes + component.offsetInBits/8 ; same for Cr.
 //     x0=this, x1=buf, x2=lumaBase(IN), x3=&Cb(OUT), x4=&Cr(OUT). Returns 0 ok / -1 fail.
 function hookGetPlaneLayout() {
-  var m = Process.findModuleByName('libAlgoProcess.so'); if (!m) return false;
-  Interceptor.attach(m.base.add(OFF_GET_PLANE_LAYOUT), {
+  var m = Process.findModuleByName(ALGO_LIB); if (!m) return false;
+  var addr = anchorResolve(SPEC_GET_PLANE_LAYOUT); if (!addr) return false;
+  Interceptor.attach(addr, {
     onEnter: function (a) { this.buf = a[1]; this.lumaBase = a[2]; this.cbOut = a[3]; this.crOut = a[4]; },
     onLeave: function (ret) {
       if (!gate('APSGrallocUtils::getPlaneLayout', hx(this.buf) + '|' + hx(this.lumaBase))) return;
@@ -226,15 +245,16 @@ function hookGetPlaneLayout() {
       console.log(line);
     }
   });
-  console.log('[hook] (B) APSGrallocUtils::getPlaneLayout @ ' + m.base.add(OFF_GET_PLANE_LAYOUT) + ' (libAlgoProcess +0x' + OFF_GET_PLANE_LAYOUT.toString(16) + ')');
+  console.log('[hook] (B) APSGrallocUtils::getPlaneLayout @ ' + addr + ' (libAlgoProcess +0x' + OFF_GET_PLANE_LAYOUT.toString(16) + ')');
   return true;
 }
 
 // B2. camApsBufferLockPlanes(buf) -> ApsBufferDesc*  [file 0x1c96f8]. Returns the filled descriptor;
 //     plane ptrs land ~ret+0x28. Dump x0(in) + the descriptor; the region scanner flags the luma/chroma pair.
 function hookLockPlanesDesc() {
-  var m = Process.findModuleByName('libAlgoProcess.so'); if (!m) return false;
-  Interceptor.attach(m.base.add(OFF_LOCK_PLANES_DESC), {
+  var m = Process.findModuleByName(ALGO_LIB); if (!m) return false;
+  var addr = anchorResolve(SPEC_LOCK_PLANES_DESC); if (!addr) return false;
+  Interceptor.attach(addr, {
     onEnter: function (a) { this.x0 = a[0]; },
     onLeave: function (ret) {
       if (!gate('camApsBufferLockPlanes', hx(this.x0))) return;
@@ -244,19 +264,20 @@ function hookLockPlanesDesc() {
       console.log('      ^ luma/chroma pair = the ApsBufferPlanes the algo consumes, BEFORE the p010/ARC apsfixup repair.');
     }
   });
-  console.log('[hook] (B) camApsBufferLockPlanes @ ' + m.base.add(OFF_LOCK_PLANES_DESC) + ' (libAlgoProcess +0x' + OFF_LOCK_PLANES_DESC.toString(16) + ')');
+  console.log('[hook] (B) camApsBufferLockPlanes @ ' + addr + ' (libAlgoProcess +0x' + OFF_LOCK_PLANES_DESC.toString(16) + ')');
   return true;
 }
 
 function armBlobHooks() { var ok = true; if (!hookGetPlaneLayout()) ok = false; if (!hookLockPlanesDesc()) ok = false;
   if (HOOK_P010_CROSSCHECK && ok) hookP010(); return ok; }
 function hookP010() {
-  var m = Process.findModuleByName('libAlgoProcess.so'); if (!m) return false;
-  Interceptor.attach(m.base.add(OFF_P010_NEON), { onEnter: function (a) {
+  var m = Process.findModuleByName(ALGO_LIB); if (!m) return false;
+  var addr = anchorResolve(SPEC_P010_NEON); if (!addr) return false;
+  Interceptor.attach(addr, { onEnter: function (a) {
     if (!gate('p010LSB2MSBNeon', null)) return;
     console.log(ts() + ' [p010LSB2MSBNeon] dst=' + hx(a[0]) + ' src=' + hx(a[1]) + ' a2=' + hx(a[2]) + ' a3=' + hx(a[3]) +
                 ' a4=' + hx(a[4]) + ' a5=' + hx(a[5]) + '  (POST-apsfixup-repair; cross-check)'); } });
-  console.log('[hook] (B-xcheck) p010LSB2MSBNeon @ ' + m.base.add(OFF_P010_NEON));
+  console.log('[hook] (B-xcheck) p010LSB2MSBNeon @ ' + addr);
   return true;
 }
 if (!armBlobHooks()) { console.log('[hook] waiting for libAlgoProcess.so to load…');

@@ -42,6 +42,20 @@
 var LIB = 'libgui.so';
 var IMAGE_BASE = 0x100000; // doc-49 offsets are image_base 0x100000; subtract for module-relative.
 
+// OTA-resilient resolver (doc-50). Bundled: globalThis.Anchor; standalone: -l tools/frida/_anchor.js first.
+// Each setEdr* target has a recorded mangled symbol (export + symtab rungs, durable) AND a doc-49 offset
+// (module-relative = off - IMAGE_BASE) used as the fallback. BuildID pinned to device (.300/V16.1.0) value
+// read via readelf (authoritative).
+var GUI_BID = '2d90a5b3f5be5b74cc33c4a6d0d029b6';
+function anchorResolve(spec) {
+  if (typeof Anchor !== 'undefined' && Anchor.resolve) return Anchor.resolve(spec);
+  // standalone fallback (no _anchor.js loaded): frida-17 instance export, else the declared offset.
+  var m = Process.findModuleByName(spec.lib); if (!m) return null;
+  if (spec.export) { try { var p = m.findExportByName(spec.export); if (p) return p; } catch (e) {} }
+  if (spec.fallback && spec.fallback.off != null) { try { return m.base.add(spec.fallback.off); } catch (e) {} }
+  return null;
+}
+
 // OplusEdrViewTransform (92 bytes / 0x5C) — doc-49 §"OplusEdrViewTransform struct":
 //   +0x00 int32 field0   +0x04 int32 field1   +0x08 int32 field2
 //   +0x0C Rect region (4x int32: left,top,right,bottom)
@@ -96,8 +110,6 @@ var NATIVE_HOOKS = [
   }
 ];
 
-// frida-17: static Module.*ExportByName removed -> instance method (doc-50)
-function gx(lib, sym){ var m = Process.findModuleByName(lib); return m ? m.findExportByName(sym) : null; }
 function hexptr(p) { return p ? p.toString() : 'null'; }
 
 // Read the OplusEdrViewTransform (0x5C) at a pointer and pretty-print field0/1/2,
@@ -211,18 +223,18 @@ function fpFromContext(ctx, n) {
 }
 
 function resolveNative(m, h) {
-  // 1) Prefer the mangled exported symbol (robust across image-base changes).
-  try {
-    var byName = (m.findExportByName && m.findExportByName(h.sym)) ||
-                 gx(LIB, h.sym);
-    if (byName) return { addr: byName, via: 'symbol' };
-  } catch (e) {}
-  // 2) Fall back to doc-49 offset-attach (image_base 0x100000 -> module-relative).
-  try {
-    return { addr: m.base.add(h.off - IMAGE_BASE), via: 'offset(0x' + h.off.toString(16) + '-imgbase)' };
-  } catch (e) {
-    return null;
-  }
+  // Route through Anchor: export (mangled sym) -> symtab (same) -> pattern(none) -> fallback offset.
+  // The fallback off is module-relative (doc-49 image_base 0x100000 -> off - IMAGE_BASE).
+  var spec = {
+    lib: LIB, name: 'SurfaceComposerClient::Transaction::' + h.name,
+    export: h.sym,
+    symtab: h.sym,
+    fallback: { buildid: GUI_BID, off: h.off - IMAGE_BASE }
+  };
+  var addr = anchorResolve(spec);
+  if (!addr) return null;
+  // Anchor already logs WHICH rung hit ([anchor] HIT ... via export/symtab/fallback); record a coarse tag here.
+  return { addr: addr, via: (typeof Anchor !== 'undefined' && Anchor.resolve) ? 'anchor' : 'standalone' };
 }
 
 var nativeHooked = false;

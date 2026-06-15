@@ -182,6 +182,21 @@ Installed `frida-inject` 17.12.0 (matches frida-server), rebooted. Results:
   Tracked as the next persistence increment; native coverage (r4 OEM txns, APS getMetadata, EDR ABI) is the
   high-value set and is live now.
 
+### Finding #2 — ksufrida script-mode REJECTED (2026-06-15); app-Java stays on the host-frida path
+An app-Java boot-residency facet via the ksufrida Zygisk gadget was built and **removed** after exhaustive
+on-device disproof. ksufrida **injects** a gadget (`frida-agent`, 9 map segments) into a fresh
+`com.oplus.camera` spawn, but it **does not execute a file-based frida `script`-mode config** — tested with
+the bundled `libsecmon.so` (alias, real copy, and direct `libsecmon.config.so` script-mode) AND a freshly
+downloaded **stock `frida-gadget-17.12.0-android-arm64`** (md5 differs from `libsecmon`, so not a custom-build
+artifact): every variant injects `frida-agent` but runs nothing, across 4 reboots and 3 independent observers
+(app-cache `File` write, `android.util.Log`, and a Java-free `__android_log_print` to logcat). Not SELinux
+(the script is `u:object_r:system_file:s0`, world-readable, zero avc denials) and not listen-mode either (no
+socket on 27042). **Conclusion: ksufrida's injection honors only listen/connect, not file-based `script` — its
+companion controls config delivery and ignores `<lib>.config.so` script.** So **app-Java probes run via the
+host-`frida` capture path** (`app_probe_capture.sh` — `trace_preview_delivery` arms with the Java bridge there,
+proven in the golden baseline), not a boot-resident hook. The facet + its `bin/frida-gadget.so` were removed;
+`post-fs-data.sh` is back to the patch-overlay facet only. Native daemon/app probes remain on `frida-inject`.
+
 ## The module is a two-facet facilitation layer (2026-06-14)
 Per the bringup intent, `oplus_cam_probes` facilitates **hooks AND binary-patch overlays** — one module,
 two facets, both INERT-until-configured and fail-open:
@@ -194,6 +209,8 @@ two facets, both INERT-until-configured and fail-open:
   Patches are wired one blob at a time, validated off the daily driver, with a `.no_patches` kill-sentinel.
 
 ## Open questions for the user
+- App-Java boot-residency via ksufrida: **CLOSED — rejected** (Finding #2). Java probes run via the
+  host-`frida` capture path; no boot-resident Java hook.
 - Persistence scope: **all** probes resident at boot (heavier, always-on) vs. an **opt-in** set (lighter)?
 - Re-anchor autonomy: allow the on-device pass to run unattended on OTA, or gate every re-anchor on review?
 - Do we flash the `oplus_cam_probes` module on this unit now, or keep it lead-only until bench-tested?

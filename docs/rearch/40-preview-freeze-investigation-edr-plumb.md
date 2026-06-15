@@ -85,3 +85,16 @@ reboot` (tears the overlay → reverts /odm + /system_ext to flashed v19).
   `onImageAvailable` keep firing? does the app acquire+close preview Images? where does
   ImageReader→GLThread→SurfaceView stop? (The Tier-1 freeze probes `probe_aps_preview_routine` /
   `probe_sendinputdata_gate` from doc-50 now instrument exactly this — wire them into the LOS A/B.)
+
+### VERIFIED correction (2026-06-15, live on stock .300) — sendInputData input-params offset
+The `probe_sendinputdata_gate` field offset was wrong: it read `AlgoPreviewProcessData + 0x378` and got NULL.
+Ghidra RE (libAlgoProcess.so `APSPreviewManager::sendInputData`, ctor `AlgoPreviewProcessData::AlgoPreviewProcessData`
+proving layout) plus a **live attach to com.oplus.camera** show the per-frame input-params holder
+(`shared_ptr<APSParamsHolder>`) is at **`+0x370`**, non-null on every call (**355/355 `holderPresent`, 0 null**
+across an active preview); `+0x378` is the next member, touched only in a dead stack-guard epilogue against a
+TLS object — hence the spurious NULL. This is a MEASURED observation (not an inference): the offset is fixed.
+The freeze "gate" itself is NOT a `holder[0]==1` flag, though — gating is key/value-driven inside
+`APSParamsHolder` (keys `doDeinit` / `is_fluency_sampling` / `input_buffer_dataspace`); reading those values
+(hook `APSParamsHolder::get<int>`@0x2341d8 / `get<bool>`@0x23fe68 in libAlgoProcess) remains the open
+inference for what actually starves `previewManagerRoutine`. So: offset = VERIFIED; freeze-causation = still
+inference pending the LOS A/B.

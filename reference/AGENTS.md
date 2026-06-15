@@ -121,9 +121,20 @@ completed test. Run the relevant parser immediately after each capture lane.
 | r4 OEM binder | `tools/observability/r4-oem-transact/parse_r4.py <oos-dir> <los-dir>` | **Pure differ — both dirs required.** Emits presence/absent per depth + binder-code diff |
 | strace syscall | `tools/observability/strace/parse_strace.py <oos-dir> <los-dir>` | **Pure differ — both dirs required.** Emits ENOENT/EACCES diffs across both daemons |
 | baseline manifest | auto-run inside `baseline.sh` step [4] | parse\_condition + parse\_r3 always; parse\_r4 + parse\_strace only when `los-ref-root` is given |
+| frida coverage | `tools/observability/campaign/frida_coverage.py <repo-root> <cond>` (auto-run inside `baseline.sh` step [4b]) | Single-side OK. Classifies every expected probe ARMED / NODATA(hook-only) / DEAD / MISSING. **DEAD or MISSING ⇒ coverage GAP** |
 
 `baseline.sh` writes parser output to `reference/baseline/<cond>/parse_*.txt` and the aggregate
 signal (`all-stable` or `see-parse`) feeds the GOLDEN vs PARTIAL verdict.
+
+**Frida coverage is a GOLDEN gate (step [4b]).** "A golden baseline needs it all" — so GOLDEN now requires
+the frida lanes to have *armed and captured*, not just exited 0. `frida_coverage.py` opens every expected
+probe's log (across attach retries — an early attach-race 0-byte log is rescued by a later good one) and
+marks it: **ARMED** (hook installed + real data line), **NODATA** (hook installed, no event in window —
+acceptable: absence of an event is a real reading), **DEAD** (0-byte / banner-only / attach-fail — the
+silent-no-op class), **MISSING** (no log). Any DEAD/MISSING ⇒ `verdict=GAP` ⇒ `baseline.sh` downgrades
+GOLDEN→PARTIAL and lists the offending probes in `frida_coverage.txt`. When a probe legitimately can't fire
+(target lib not in that pid, no qualifying event), it lands NODATA and does NOT void golden — only a dead
+hook does. This closes the frida-17-static-API / attach-race failure class that a `CORE=ran` check misses.
 
 ### 5. TRACE-TO-ROOT
 

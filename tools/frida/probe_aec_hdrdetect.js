@@ -10,25 +10,40 @@
 // Usage: attach to the camera provider process DURING preview-start (the decision burst is one-shot;
 // late attach = 0 calls). `adb shell setenforce 0` first. Set FORCE=true to test the coherent lever
 // (force the detector ON for the normal preview) — see doc 45 for interpretation.
+// OTA-resilient: -l tools/frida/_anchor.js first (standalone), or run via the bundled agent (globalThis.Anchor).
 
 const FORCE = false;
 
+const LIB = 'libaecCustom.so';
 const OFF_HDRDETECT = 0x0b4d8c;   // HDRDetectProcess: gate *(*ctx+0x48)==0
 const OFF_TRIGGER   = 0x0ed7e4;   // HDRTriggerFlagDetection: writes hdr_detected at aecOut+0xfc
 
-function findBase(name) {
-  // Frida 17 removed Module.findBaseAddress static; use Process.findModuleByName.
-  try { const m = Process.findModuleByName(name); if (m) return m.base; } catch (e) {}
-  try { if (Module.findBaseAddress) return Module.findBaseAddress(name); } catch (e) {}
+// Anchor specs (doc-50). Both targets are LOCAL (FUN_) funcs — not exported, no mangled name recorded in
+// Ghidra notes, no prologue signature documented — so only the offset fallback rung applies. The blob is
+// byte-identical OOS<->LOS. BuildID pinned to device (.300/V16.1.0) value read via readelf (authoritative).
+const SPEC_HDRDETECT = { lib: LIB, name: 'HDRDetectProcess',
+  fallback: { buildid: 'd0204b3e6a969b87e90361af5127dce86e07953a', off: OFF_HDRDETECT } };
+const SPEC_TRIGGER   = { lib: LIB, name: 'HDRTriggerFlagDetection',
+  fallback: { buildid: 'd0204b3e6a969b87e90361af5127dce86e07953a', off: OFF_TRIGGER } };
+
+function anchorResolve(spec) {
+  if (typeof Anchor !== 'undefined' && Anchor.resolve) return Anchor.resolve(spec);
+  // standalone fallback (no _anchor.js loaded): frida-17 instance export, else the declared offset.
+  const m = Process.findModuleByName(spec.lib); if (!m) return null;
+  if (spec.export) { try { const p = m.findExportByName(spec.export); if (p) return p; } catch (e) {} }
+  if (spec.fallback && spec.fallback.off != null) { try { return m.base.add(spec.fallback.off); } catch (e) {} }
   return null;
 }
 
 function hook() {
-  const base = findBase('libaecCustom.so');
-  if (!base) return false;
-  console.log('[aec] libaecCustom.so @ ' + base);
+  const m = Process.findModuleByName(LIB);
+  if (!m) return false;
+  const pDetect = anchorResolve(SPEC_HDRDETECT);
+  const pTrigger = anchorResolve(SPEC_TRIGGER);
+  if (!pDetect || !pTrigger) return false;
+  console.log('[aec] libaecCustom.so @ ' + m.base);
 
-  Interceptor.attach(base.add(OFF_HDRDETECT), {
+  Interceptor.attach(pDetect, {
     onEnter(a) {
       try {
         const ctx = a[1];                       // param_2 = per-frame AEC ctx
@@ -45,7 +60,7 @@ function hook() {
     }
   });
 
-  Interceptor.attach(base.add(OFF_TRIGGER), {
+  Interceptor.attach(pTrigger, {
     onLeave() {
       // aecOut = param_2 of HDRTriggerFlagDetection == the same per-frame ctx's output region.
       // Re-read on the next HDRDetect entry instead; here just mark that the producer ran.

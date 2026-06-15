@@ -16,10 +16,23 @@
 //   ★ LEVERS (base-CamX, name TBD via the dump): +0x6a28 (SHDR-auto-exp usecase gate), +0x6a18 (HDR-mode-info gate)
 //
 // Frida-17: Process.findModuleByName + instance findExportByName. Attach-by-PID to the provider; setenforce 0.
-//   frida -U -p <provider_pid> -l dump_camxsettings.js
+//   frida -U -p <provider_pid> -l tools/frida/_anchor.js -l dump_camxsettings.js   (or via the bundled agent)
 // Then: adb pull /data/vendor/camera/camxsettingsdump.txt
 
 const SM = 'libcamxsettingsmanager.so';
+
+// OTA-resilient resolver (doc-50). Bundled: globalThis.Anchor; standalone: -l tools/frida/_anchor.js first.
+// Routes BOTH base-symbol lookups (GetInstance export + WriteCamxSettingsToFile offset) through the
+// export→symtab→pattern→fallback ladder so a wrong-build offset is REFUSED (buildid gate) rather than
+// blindly called. The OFF_WRITE prologue self-check below is PRESERVED as a second, independent guard.
+function anchorResolve(spec){
+  if (typeof Anchor !== 'undefined' && Anchor.resolve) return Anchor.resolve(spec);
+  // standalone fallback (no _anchor.js loaded): frida-17 instance export, else the declared offset.
+  const m = Process.findModuleByName(spec.lib); if (!m) return null;
+  if (spec.export) { try { const p = m.findExportByName(spec.export); if (p) return p; } catch(e){} }
+  if (spec.fallback && spec.fallback.off != null) { try { return m.base.add(spec.fallback.off); } catch(e){} }
+  return null;
+}
 // CamX::SettingsManagerImpl::WriteCamxSettingsToFile — NOT exported (not in .dynsym), so called by offset.
 // Offset is BUILD-PINNED; re-derive per build in Ghidra (symbol is in the binary; image base 0x100000 →
 // runtime = Ghidra - 0x100000). Verified offsets:
@@ -37,9 +50,26 @@ const HDR_OFFS = { '+0x1e0 enable3expSHDRSnapshot':0x1e0, '+0x6a18 LEVER(hdrMode
                    '+0x6a28 LEVER(shdrAutoExp)':0x6a28, '+0x6a2c selectedDCGMode':0x6a2c,
                    '+0x6a40 setHDRMode':0x6a40, '+0x6544 (was already 1)':0x6544 };
 
+// WriteCamxSettingsToFile — NOT exported (called by offset). Anchor resolves its ABSOLUTE address via the
+// pattern rung (the SIG_HEX prologue) then the buildid-gated offset fallback; the OFF_WRITE prologue
+// self-check below is kept EXACTLY and re-runs at the resolved address as an independent crash guard.
+// Mangled symtab name not recorded in Ghidra notes here (NOT exported) -> no `symtab`/`export` rung.
+const WRITE_SPEC = {
+  lib: SM, name: 'CamX::SettingsManagerImpl::WriteCamxSettingsToFile',
+  pattern: '3f 23 03 d5 fd 7b bc a9 fc 5f 01 a9 f6 57 02 a9',   // SIG_HEX prologue (durable across minor rebuilds)
+  fallback: { buildid: '1e7abaf1521db441ffc3e9dd70cd8c77', off: OFF_WRITE }  // V16.1.0; +0x13168 also on 16.0.7.201
+};
+
+// SettingsManager::GetInstance — EXPORTED; route through Anchor so it gets the symtab/fallback safety net.
+const GETINSTANCE_SPEC = {
+  lib: SM, name: 'CamX::SettingsManager::GetInstance',
+  export: '_ZN4CamX15SettingsManager11GetInstanceEv',
+  symtab: '_ZN4CamX15SettingsManager11GetInstanceEv'
+};
+
 function getSettings(m){
   try{
-    const gi=m.findExportByName('_ZN4CamX15SettingsManager11GetInstanceEv'); if(!gi) return null;
+    const gi=anchorResolve(GETINSTANCE_SPEC); if(!gi) return null;
     const inst=new NativeFunction(gi,'pointer',[])(); if(inst.isNull()) return null;
     const vt=inst.readPointer();
     const s=new NativeFunction(vt.add(0x10).readPointer(),'pointer',['pointer'])(inst); // getSettings()
@@ -67,13 +97,19 @@ function run(){
   //    Offset is build-pinned and the fn is NOT exported; a wrong-build call would crash the provider.
   //    The dump is by-NAME so it is build-independent OUTPUT once we've safely entered the right function.
   try{
-    const got=Array.from(new Uint8Array(m.base.add(OFF_WRITE).readByteArray(16)))
+    const wAddr=anchorResolve(WRITE_SPEC);
+    if(!wAddr){
+      console.log('✗ ABORT dump: WriteCamxSettingsToFile unresolved (Anchor MISS) — do NOT call (crash risk).'+
+                  ' Re-anchor in Ghidra (image base 0x100000 -> runtime = Ghidra - 0x100000).');
+      return true;
+    }
+    const got=Array.from(new Uint8Array(wAddr.readByteArray(16)))
                  .map(function(b){return ('0'+(b&0xff).toString(16)).slice(-2);}).join('');
     if(got!==SIG_HEX){
-      console.log('✗ ABORT dump: bytes @ +0x'+OFF_WRITE.toString(16)+' = '+got+' != expected '+SIG_HEX+
-                  ' — OFF_WRITE is NOT valid for this build. Re-derive in Ghidra; do NOT call (crash risk).');
+      console.log('✗ ABORT dump: bytes @ '+wAddr+' = '+got+' != expected '+SIG_HEX+
+                  ' — resolved WriteCamxSettingsToFile is NOT valid for this build. Re-derive in Ghidra; do NOT call (crash risk).');
     }else{
-      const wf=new NativeFunction(m.base.add(OFF_WRITE),'void',['pointer']);
+      const wf=new NativeFunction(wAddr,'void',['pointer']);
       wf(g.inst);
       console.log('★ sig OK -> WriteCamxSettingsToFile called -> /data/vendor/camera/camxsettingsdump.txt'+
                   ' (also check the coredump dir). adb pull it, then diff stock vs LOS BY NAME.');
