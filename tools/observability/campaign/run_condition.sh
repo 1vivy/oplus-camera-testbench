@@ -97,8 +97,16 @@ while [ "$k" -le "$REPEAT_N" ]; do
   adb shell su -c "AE_LOCK=$AE_LOCK sh /data/local/tmp/obs-capture/ab_capture.sh $MODE $SESSION" >/dev/null 2>&1
   DEVDIR=$(adb shell su -c 'ls -dt /data/local/tmp/obs_ab_* 2>/dev/null | head -1' | tr -d '\r')
   [ -n "$DEVDIR" ] && pull_dir "$DEVDIR" "$RUN/ab" && adb shell su -c "rm -rf $DEVDIR" 2>/dev/null
-  # reference screencap (audit the scene/lock held)
+  # reference screencap + SCENE AUDIT. A stuck popup / wrong app makes the cold launch come up BEHIND it, so
+  # the screenshot is the wrong screen (the ~82KB scene.png poison — e.g. the "Allow Scan to take pictures"
+  # permission dialog from the doc-digitizer). Record the foreground app + screenshot size and flag SUSPECT
+  # when the camera isn't foreground or the shot is tiny (a real preview is MBs; a popup/black is ~80KB).
+  fg=$(adb shell dumpsys window 2>/dev/null | grep -m1 mCurrentFocus | tr -d '\r')
   adb shell screencap -p /sdcard/_sc.png 2>/dev/null; adb pull /sdcard/_sc.png "$RUN/scene.png" >/dev/null 2>&1; adb shell rm -f /sdcard/_sc.png
+  ssz=$(stat -c %s "$RUN/scene.png" 2>/dev/null || echo 0)
+  scene_ok=1; case "$fg" in *com.oplus.camera*) : ;; *) scene_ok=0 ;; esac; [ "$ssz" -lt 300000 ] && scene_ok=0
+  printf 'scene_ok=%s foreground=%s scene_bytes=%s\n' "$scene_ok" "$fg" "$ssz" > "$RUN/scene_audit.txt"
+  [ "$scene_ok" = 1 ] || echo "  !! SCENE SUSPECT run${k} (fg=$fg size=${ssz}B) — likely a stuck popup/wrong app; see scene_audit.txt"
   k=$((k+1))
 done
 

@@ -72,6 +72,13 @@ tap_desc() {
 # launches with btn_privacy_confirm="Agree and continue". Returns 0 if it dismissed something.
 dismiss_overlays() {
   if tap_id "com.oplus.aiunit:id/btn_privacy_confirm"; then act "dismissed AI-consent (Agree and continue)"; sleep 1; return 0; fi
+  # Runtime camera-permission dialog — e.g. the "Allow Scan to take pictures and record video?" popup from the
+  # doc-digitizer (scandoc/text). VERIFIED root of the ~82KB scene.png poison: it stays foreground and every
+  # cold camera launch comes up BEHIND it, so all modes screenshot the popup. Dismiss it (allow foreground so
+  # it doesn't re-prompt). permissioncontroller button ids are stable across the AOSP dialog.
+  if tap_id "com.android.permissioncontroller:id/permission_allow_foreground_only_button"; then act "granted runtime perm (While using the app)"; sleep 1; return 0; fi
+  if tap_id "com.android.permissioncontroller:id/permission_allow_button"; then act "granted runtime perm (Allow)"; sleep 1; return 0; fi
+  if tap_id "com.android.permissioncontroller:id/permission_deny_button"; then act "dismissed runtime perm dialog (deny)"; sleep 1; return 0; fi
   return 1
 }
 
@@ -81,10 +88,22 @@ launch() {
   am force-stop "$PKG" 2>/dev/null
   am start -n "$PKG/.Camera" >/dev/null 2>&1 || am start -n "$PKG/com.oplus.camera.Camera" >/dev/null 2>&1
   act "launch $PKG (cold)"; sleep 5
-  # SETTLE: dismiss any blocking consent overlay, then wait until the mode strip is readable before nav.
-  s=0; while [ "$s" -lt 5 ]; do
-    dismiss_overlays && continue
-    [ -n "$(current_mode)" ] && break
+  # SETTLE + FOREGROUND-VERIFY: dismiss blocking dialogs AND make sure com.oplus.camera actually OWNS the
+  # foreground before nav. A stuck permission popup or the doc-Scan app obscures the camera, so every cold
+  # launch comes up behind it and we screenshot the wrong screen (the ~82KB scene.png poison). If the
+  # foreground is NOT the camera, back out of the intruder + relaunch; only proceed when the camera is
+  # foreground AND the mode strip is readable.
+  s=0; while [ "$s" -lt 6 ]; do
+    dismiss_overlays && { sleep 1; continue; }
+    fg=$(dumpsys window 2>/dev/null | grep -m1 mCurrentFocus)
+    case "$fg" in
+      *com.oplus.camera*) [ -n "$(current_mode)" ] && break ;;
+      *) act "launch: foreground NOT camera ($fg) — backing out + relaunching"
+         input keyevent KEYCODE_BACK; sleep 1; input keyevent KEYCODE_HOME; sleep 1
+         am force-stop "$PKG" 2>/dev/null
+         am start -n "$PKG/.Camera" >/dev/null 2>&1 || am start -n "$PKG/com.oplus.camera.Camera" >/dev/null 2>&1
+         sleep 4 ;;
+    esac
     input keyevent KEYCODE_WAKEUP; input tap "$PREVIEW_CX" "$PREVIEW_CY" 2>/dev/null; sleep 2; act "settle: nudged preview awake ($s)"
     s=$((s+1))
   done
