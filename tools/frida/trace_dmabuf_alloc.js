@@ -28,6 +28,12 @@
 
 var DMA_HEAP_IOCTL_ALLOC = 0xc0184800;
 var MAX_LOG = 400;
+// SELF-DETACH the ioctl hook DETACH_MS after the first camera alloc. The dma allocs happen in a burst at
+// configure_streams (cold launch); after that the global ioctl hook is pure overhead — and on pathologically
+// ioctl-heavy paths (120x AI super-zoom) that overhead WEDGES the provider and hangs the UI drive. The first
+// configure burst is the golden denominator (deterministic across runs), so we capture it then unhook.
+var DETACH_MS = 12000;
+var listener = null, detachScheduled = false;
 
 function ts() { return '[' + (Date.now() % 1000000) + ']'; }
 
@@ -55,11 +61,21 @@ function heapName(fd) {
 var byLen = {};   // len-hex -> { count, heap, hflags, fd }
 var logged = 0;
 
+function detachHook() {
+  try { if (listener) { listener.detach(); listener = null; } } catch (e) {}
+  var keys = Object.keys(byLen);
+  keys.sort(function (x, y) { return byLen[y].count - byLen[x].count; });
+  var line = ts() + ' [DMABUF rollup-final] ioctl hook DETACHED after configure burst (' + keys.length + ' distinct sizes):';
+  for (var i = 0; i < keys.length && i < 40; i++) { var r = byLen[keys[i]];
+    line += '\n    ' + (r.len ? r.len.toString() : '?') + ' (' + keys[i] + ') x' + r.count + '  heap=' + r.heap; }
+  console.log(line);
+}
+
 (function () {
   var ioctl = null;
   try { ioctl = Process.getModuleByName('libc.so').findExportByName('ioctl'); } catch (e) {}
   if (!ioctl) { console.log('[hook] ioctl NOT found (libc not mapped?)'); return; }
-  Interceptor.attach(ioctl, {
+  var lst = Interceptor.attach(ioctl, {
     onEnter: function (a) {
       this.skip = true;
       var req; try { req = a[1].toInt32() >>> 0; } catch (e) { return; }
@@ -84,8 +100,11 @@ var logged = 0;
       console.log(ts() + ' [DMABUF] len=' + (this.len ? this.len.toString() : '?') + ' (' + lenHex + ')' +
                   ' heap=' + heap + ' heap_flags=0x' + (this.hflags ? this.hflags.toString(16) : '?') +
                   ' fd=' + (fd === null ? '?' : fd) + '  <first of this size>');
+      // first alloc seen -> schedule the self-detach so the hook can't wedge a heavy path after configure
+      if (!detachScheduled) { detachScheduled = true; setTimeout(detachHook, DETACH_MS); }
     }
   });
+  listener = lst;
   console.log('[hook] DMA_HEAP_IOCTL_ALLOC (ioctl req=0x' + DMA_HEAP_IOCTL_ALLOC.toString(16) + ') @ ' + ioctl);
   console.log(ts() + ' trace_dmabuf_alloc.js armed (provider-side). COLD-LAUNCH the camera to fire configure allocations.');
 })();
