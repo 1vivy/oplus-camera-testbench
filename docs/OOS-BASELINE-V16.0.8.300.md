@@ -36,6 +36,31 @@ proven live, not merely that the lanes executed.
   8K data markers (holderPresent / APSParamsHolder / op_mode=0x80…), so ARMED-with-data is counted accurately.
 - The assisted runbook to reproduce/extend (and trace upward to root) is `reference/AGENTS.md`.
 
+## UPDATE 2026-06-15b — alloc-chain instrumentation + the gralloc reframe
+The golden capture now includes the **libAlgoProcess→libArcSoft→gralloc alloc-chain** lane (the central LOS
+open problem). New probes wired into the matrix `EXTRA_PROBES`:
+- **`trace_arcsoft_io.js`** (APP, via `app_probe_capture.sh`) — the ArcSoft I/O struct contract libapsfixup
+  repairs (`+0x40` luma / `+0x48` chroma / `+0x60/64` pitch). Auto-discovers the `libarcsoft_*.so *Process`
+  engines; the live HDR-photo engine is **`ARC_HDR_PreProcess`** (NOT the libapsfixup-named `ARC_Turbo_RAW`).
+  GOLDEN (stock): chroma contiguous, `pitch0==pitch1`.
+- **`trace_dmabuf_alloc.js`** (PROVIDER) — decodes `dma_heap_allocation_data.len` per camera
+  `DMA_HEAP_IOCTL_ALLOC` (the earliest-divergence size field). GOLDEN: 50 distinct sizes on `/dev/dma_heap/system`.
+- **`trace_gralloc_iallocator.js`** (allocator-service) — confirms the camera BYPASSES the gralloc allocator
+  service (0 `AllocateBuffer` hits); graphics-buffer denominator only.
+- **strace** extended to the app + allocator + a **dmabuf/ION first-look** (provider 267 `DMA_HEAP_IOCTL_ALLOC`).
+
+New matrix conditions: **`masterraw`** (MASTER/Pro RAW→DNG) and **`switch`** (120× AI super-zoom). `p010` now
+drives the real two-shot; `validate_modes` gained a scene-reality gate (foreground + screenshot-size).
+
+**THE REFRAME (corrects the standing "gralloc" attribution) — see `docs/re-notes/alloc-chain-locus-RE.md`:**
+gralloc-the-allocator and the mapper4→v5 transition are **ruled out** as the P010-malformation root (camera
+bypasses the allocator; the dma_heap is format-blind; `IMapper@4.0 NULL`→Gralloc5 is symmetric OOS↔LOS on
+byte-identical mapper). The locus is **upstream geometry / the metadata contract**. The dma `len` is the
+discriminator at the A/B: `len` differs ⇒ wrong alignment baked in upstream of gralloc; `len` matches but
+`impliedAlignedH` diverges ⇒ metadata/read contract. Root stays INFERENCE until the OOS↔LOS A/B (axiom).
+
+Run the full golden batch with: `RUNNER=full_baseline.sh tools/observability/campaign/campaign.sh`.
+
 ## Scope
 Fresh stock-OOS baseline on the reference unit at the **16.0.8.300** point release (OOS-BL-001 was 16.0.7).
 Same purpose: a *golden working* stock photo cycle captured with identical instrumentation to diff the
