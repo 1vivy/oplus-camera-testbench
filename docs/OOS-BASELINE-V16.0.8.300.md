@@ -59,7 +59,21 @@ byte-identical mapper). The locus is **upstream geometry / the metadata contract
 discriminator at the A/B: `len` differs ⇒ wrong alignment baked in upstream of gralloc; `len` matches but
 `impliedAlignedH` diverges ⇒ metadata/read contract. Root stays INFERENCE until the OOS↔LOS A/B (axiom).
 
-Run the full golden batch with: `RUNNER=full_baseline.sh tools/observability/campaign/campaign.sh`.
+**RESULTS — golden batch captured 2026-06-15 (`RUNNER=full_baseline.sh campaign.sh`, 24/24 conditions, ALL
+STABLE, stock-only):**
+- **dma `len` golden** in all 5 alloc conditions: gralloc-p010 55 distinct sizes, masterraw 69, p010 69, scandoc
+  57, **switch (120×) 50** incl a 4.5 MB (`0x451000`) super-zoom buffer; notable `/dev/dma_heap/system` lens
+  6291456 / 2097152 / 1843200. Format-blind heap → `len` is the A/B discriminator (upstream-geometry vs metadata).
+- **ArcSoft I/O struct golden** in gralloc-p010 + p010 (deterministic): `ARC_HDR_PreProcess` — chroma **contiguous**
+  `(chroma−luma)=0x258000 (= stride 2560 × 960)`, **`pitch0==pitch1==2560`**. (masterraw=0 is correct — RAW bypasses
+  ArcSoft.) The live engine is `ARC_HDR_PreProcess`, not the libapsfixup-named `ARC_Turbo_RAW`.
+- **Allocator bypass** confirmed: 0 `gralloc::BufferManager::AllocateBuffer` on a camera capture — CamX/ION owns it.
+
+Two batch hangs were diagnosed + fixed during capture: (1) an r4-lane wedge when the r3 `[photo night]` drive
+left the camera in NIGHT (worked around with `RUN_R4=0`); (2) **`trace_dmabuf_alloc`'s global `ioctl` hook
+wedging the provider on the 120× super-zoom's pathological ioctl traffic** — fixed by self-detaching the hook 12 s
+after the configure burst (the dma allocs all happen at configure; after that the hook is pure overhead). Commit
+`75e52fb`. Re-run the full golden with: `RUNNER=full_baseline.sh tools/observability/campaign/campaign.sh`.
 
 ## Scope
 Fresh stock-OOS baseline on the reference unit at the **16.0.8.300** point release (OOS-BL-001 was 16.0.7).

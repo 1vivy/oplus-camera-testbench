@@ -10,7 +10,7 @@ conviction: BLOCKED            # runtime OOS↔LOS A/B still LOS-deferred (G-SYM
 verdict: ""                    # axiom: a byte-identical blob is never the root — fix is a namespace knob (E4), not a blob edit
 confidence: low
 symptoms: [5, 1]              # #5 P010/IMapper@4.0-NULL roots here (proximate); feeds #1 freeze
-probes: [r3-gralloc, trace_p010_planes.js]
+probes: [r3-gralloc, trace_p010_planes.js, trace_gralloc_p010_chain.js, trace_arcsoft_io.js, trace_dmabuf_alloc.js]
 gaps: []                      # gralloc lever = FRIDA-ONLY (lever-index): no setprop verbosity; r3 + frida bridge it
 dodge_ref: ""                 # root may live in E4 (namespace reachability) — see E4 dodge-vs-dirty
 dirty_ref: ""
@@ -18,8 +18,8 @@ divergence: ""                # E4 owns the divergence verdict; D1 is the crash/
 upstream: [C5, D2]            # C5 CamX/feature2 (stream geometry) + D2 HAL-fill feed the P010 buffer here
 downstream: [D2]             # wrong layout → APS/libAlgoProcess OOB read → SEGV / frame-1 hold
 refuted_refs: [R-D1-libui, R-D1-snapalloc, R-D1-usagebit, R-D1-getstub-21e5b4]
-doc_refs: [doc-42, doc-14, doc-46]
-updated: 2026-06-14
+doc_refs: [doc-42, doc-14, doc-46, alloc-chain-locus-RE]
+updated: 2026-06-15
 ---
 
 # D1 — gralloc / mapper / CamxFormatUtil (P010)
@@ -99,6 +99,37 @@ D1 is a crash/stall SITE; the divergence verdict is owned by **E4** (namespace) 
 
 - **#5 (P010 / IMapper@4.0 getService NULL)** — PROXIMATE-SITE here (non-contiguous P010 lock → APS OOB). ROOT is the broken namespace propagation contract at **E4** (mapper/allocator blobs md5-identical; OOS also NULLs `IMapper@4.0::getService` and still gets contiguous). Edge: `D1 →(namespace dlopen)→ E4`.
 - **#1 (preview freeze)** — D1 FEEDS it: a wrong/garbage P010 layout makes `libAlgoProcess` mis-read and hold frame 1 (`decMetaRefZeroToRemove` upcall never made). D1 is a contributing SITE, not #1's root (#1's release-gate root is OPEN at C6/D3).
+
+## (g) UPDATE 2026-06-15 — alloc-chain golden captured; the gralloc-allocator-bypass reframe
+
+New stock golden (24/24 matrix via `RUNNER=full_baseline.sh campaign.sh`; probes `trace_dmabuf_alloc` /
+`trace_arcsoft_io` / `trace_gralloc_iallocator`). This LIGHTS the downstream ArcSoft-struct carrier ((a)
+line 62) and splits "gralloc" into three layers — the axiom holds (gralloc blob = SITE), and the fact-to-resolve
+(c) gets a discriminating field. Full reframe: `docs/re-notes/alloc-chain-locus-RE.md`.
+
+- **ALLOCATOR BYPASS (new, VERIFIED):** the camera's P010/processing buffers are allocated PROVIDER-side via
+  `DMA_HEAP_IOCTL_ALLOC` on `/dev/dma_heap/system` (CamX/ION) — `gralloc::BufferManager::AllocateBuffer` /
+  `Allocator::AllocateMem` fire **ZERO** times on a camera capture (`trace_gralloc_iallocator.js`). The gralloc
+  ALLOCATOR service is not in the camera path; gralloc's role here is mapper/layout only. The dma_heap is
+  **FORMAT-BLIND** (returns `len` bytes, no stride/plane/format opinion).
+- **dma `len` golden — the DISCRIMINATOR for (c):** `trace_dmabuf_alloc.js` captured the per-configure requested
+  sizes (gralloc-p010 55 distinct, p010 69, scandoc 57, switch[120x] 50 incl a 4.5 MB super-zoom buffer; notable
+  system-heap lens 6291456 / 2097152 / 1843200). Because the heap is format-blind, `len` is the EARLIEST place a
+  wrong alignment can appear, and it splits (c)'s two surviving branches at the A/B: **`len` DIFFERS** OOS↔LOS ⇒
+  wrong geometry baked in UPSTREAM of gralloc (the C5 described-height/stride config — the "non-usage allocation
+  input" alt-(ii)); **`len` MATCHES but realized `impliedAlignedH` diverges** ⇒ the E4 namespace / metadata-layout
+  branch (fallback `CamxFormatUtil` wrong offsets). Stock-only this is the golden; the branch resolves at A/B.
+- **ArcSoft I/O struct GOLDEN — (a) line-62 carrier now LIT:** `trace_arcsoft_io.js` captured the DOWNSTREAM
+  consume struct (`+0x40` luma / `+0x48` chroma / `+0x60` pitch0 / `+0x64` pitch1) on stock. The live engine is
+  **`ARC_HDR_PreProcess`** (libarcsoft_high_dynamic_range_couple), NOT the libapsfixup-named `ARC_Turbo_RAW`.
+  GOLDEN (gralloc-p010 + p010, deterministic): chroma **CONTIGUOUS** `(chroma−luma)=0x258000 (= stride 2560 × 960)`,
+  **`pitch0==pitch1==2560`**. On LOS this struct is the Family-I break (chroma garbage / pitch1=0). `camApsBufferLockPlanes`
+  still returns `descriptor=0x0` on stock (consistent with (a)/G-MECH).
+- **mapper4→v5 RULED OUT as root (explicit):** `IMapper@4.0 NULL`→Gralloc5 is SYMMETRIC OOS↔LOS on the byte-identical
+  mapper and OOS still gets contiguous P010 — not a divergence (was implicit in R-D1-getstub; now stated).
+
+NET: gralloc-allocator + mapper-version are confirmed SITES (axiom); the locus is upstream geometry (C5) and/or
+the namespace/metadata-layout contract (E4), and the new dma-`len` field is what DISCRIMINATES the two at the A/B.
 
 ## REFUTED candidates (carried so we never re-walk — doc-42 EXHAUSTIVE VERDICT, R-D1-*)
 
