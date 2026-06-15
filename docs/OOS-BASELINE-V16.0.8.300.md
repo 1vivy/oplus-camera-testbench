@@ -23,7 +23,17 @@ proven live, not merely that the lanes executed.
 - Raw lanes (indexed, not duplicated): `reference/{campaign,r3,r4,strace}/full-baseline/`.
 - Stable signal across both runs: fusion-graph 21912→27974, hdr_detected present, copyMetadata-UAF False,
   8K −38 False, OEM-binder dropped=2. strace tells: ENOENT on `opluseisoverridesettings.txt`, `utele_*.bin`.
-- New Tier-1/Tier-2 freeze+8K traces: `reference/baseline/freeze-gateb/` (the `freeze-gateb` condition).
+- **`freeze-gateb` (video8k) golden — captured 2026-06-15: VERDICT=GOLDEN, frida 9/9 FULL.** The 8K data we
+  were after: **`getExtensionOperatingMode → op_mode=0x80a9` (the 8K operating mode)**; `sendInputData` reads
+  the input-params holder at **`+0x370`** non-null in 8K video (`holderPresent=37 holderNull=0` — the RE fix
+  validated in the actual freeze condition); configure_streams + OEM-transaction depths armed. Record:
+  `reference/baseline/freeze-gateb/`.
+- **Automation hardening (the "13/13 ≠ what we wanted" fix).** `drive_cycle.sh` `ensure_8k` is now
+  feedback-driven (no blind taps — the old fixed coords mis-fired into Google Lens when the camera was
+  slow/frozen); a new `assert_scope` guard asserts the camera is foreground AND in the intended mode before
+  the shutter, so a capture can't read "coverage FULL" while actually in the wrong app/mode. video8k/photo/
+  night all GRADUATE 2/2 in `validate_modes`. The frida-coverage classifier also recognises the freeze-gate /
+  8K data markers (holderPresent / APSParamsHolder / op_mode=0x80…), so ARMED-with-data is counted accurately.
 - The assisted runbook to reproduce/extend (and trace upward to root) is `reference/AGENTS.md`.
 
 ## Scope

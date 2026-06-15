@@ -1,0 +1,15 @@
+# FRIDA COVERAGE — freeze-gateb
+# armed+data=5  hook-only(nodata)=4  DEAD=0  MISSING=0  total=9
+probe                            lane       state    evidence
+------------------------------------------------------------------------------------------------
+enable_camx_logging              lever      NODATA   enable_camx_logging.log (624B, hook-only)
+unclobber_camx_logs              lever      NODATA   unclobber_camx_logs.log (851B, hook-only)
+probe_aps_preview_routine        app        NODATA   probe_aps_preview_routine.log (604B, hook-only)
+probe_sendinputdata_gate         app        ARMED    probe_sendinputdata_gate.log (987B, data)
+hook_before_configure_streams    provider   ARMED    hook_before_configure_streams.log (1775B, data)
+probe_get_extension_opmode       provider   ARMED    probe_get_extension_opmode.log (942B, data)
+hook_configure_streams           provider   ARMED    hook_configure_streams.log (11894B, data)
+r4_ext_server                    r4-kit     ARMED    ext_server_20260614-193655.log (22747B, data)
+r4_ext_client                    r4-kit     NODATA   ext_client_20260615-005138.log (90B, hook-only)
+------------------------------------------------------------------------------------------------
+FRIDA_COVERAGE=9/9 verdict=FULL

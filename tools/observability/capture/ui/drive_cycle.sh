@@ -144,8 +144,41 @@ enter_more_item() {
   tap_desc "$1" "more_item" || { act "enter_more_item '$1' FAILED"; return 1; }
   sleep 2
 }
-# ensure VIDEO resolution = 8K (open the FrameRate/Resolution chip, tap 8K).
-ensure_8k() { input tap $VID_RES_CHIP; sleep 1; input tap $VID_RES_8K; sleep 1; tap_desc "8K" >/dev/null 2>&1; act "ensure 8K"; sleep 1; }
+# ensure VIDEO resolution = 8K — FEEDBACK-DRIVEN (no blind coords). The old fixed-coord taps
+# (VID_RES_CHIP / VID_RES_8K) mis-fired into OTHER apps (observed: Google Lens) whenever this ran on a
+# screen that wasn't actually the open VIDEO resolution chooser — e.g. when goto_main_mode hadn't really
+# reached VIDEO (frozen/slow camera) but the case ran ensure_8k regardless. Now: refuse unless in VIDEO,
+# short-circuit if already 8K (this device defaults to 8K·30 → usually zero taps), else open the
+# FrameRate/Size chooser BY CONTENT-DESC and tap "8K" only AFTER confirming the chooser actually opened.
+ensure_8k() {
+  [ "$(current_mode)" = "VIDEO" ] || { act "ensure_8k: not in VIDEO (got '$(current_mode)') — REFUSE (no blind tap)"; return 1; }
+  dump
+  if tr '>' '\n' < /data/local/tmp/obs_ui.xml 2>/dev/null | grep -F 'id/tv_first' | grep -qE 'text="8K'; then
+    act "ensure 8K OK (already 8K — no taps)"; return 0   # canonical marker 'ensure 8K' for validate_modes
+  fi
+  tap_desc "FrameRate and Size" || { act "ensure_8k: FrameRate chip not found — ABORT (no blind tap)"; return 1; }
+  sleep 1; dump
+  if ! tr '>' '\n' < /data/local/tmp/obs_ui.xml 2>/dev/null | grep -qF 'content-desc="8K"'; then
+    act "ensure_8k: chooser did not open (no 8K option) — ABORT (no blind tap)"; return 1
+  fi
+  tap_desc "8K" || { act "ensure_8k: 8K option tap failed"; return 1; }
+  sleep 1; act "ensure 8K (feedback-driven, confirmed)"; return 0
+}
+
+# CAPTURED-WHAT-WE-WANTED guard. Coverage (13/13 probes armed) does NOT prove we captured the intended
+# scene: a mis-tap that lands in Google Lens — or the wrong camera mode — still arms probes and flows frames.
+# Call before the capture trigger to assert the camera is foreground AND in the expected mode; abort if not.
+assert_scope() {
+  want=$(echo "$1" | tr '[:lower:]' '[:upper:]')
+  fg=$(dumpsys window 2>/dev/null | grep -m1 mCurrentFocus)
+  case "$fg" in
+    *com.oplus.camera*) : ;;
+    *) act "assert_scope: FOREGROUND is not the camera ($fg) — ABORT capture"; return 1 ;;
+  esac
+  cm=$(current_mode)
+  [ "$cm" = "$want" ] || { act "assert_scope: mode is '$cm', wanted '$want' — ABORT capture"; return 1; }
+  act "assert_scope OK (camera foreground, mode=$cm)"; return 0
+}
 
 # replay a recorded session: prefer a faithful raw getevent stream (<name>.events via replay_events.sh),
 # else a verb action list (<name>.actions).
@@ -181,8 +214,13 @@ case "$MODE" in
                 set -- $(dump; tr '>' '\n' < /data/local/tmp/obs_ui.xml | grep -F "resource-id=\"$RID_SHUTTER\"" | grep -oE 'bounds="\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]"' | head -1 | grep -oE '[0-9]+')
                 if [ $# -ge 4 ]; then scx=$(( ($1+$3)/2 )); scy=$(( ($2+$4)/2 )); else scx=636; scy=2261; fi
                 longpress "$scx" "$scy" 2500; sleep 4 ;;
-  video)        launch; goto_main_mode VIDEO; sleep 1; shutter; sleep 4; shutter; sleep 2 ;;  # preview/record baseline
-  video8k)      launch; goto_main_mode VIDEO; sleep 1; ensure_8k; shutter; sleep 4; shutter; sleep 2 ;;  # #8 configure_streams/EISv2
+  video)        launch; goto_main_mode VIDEO || { act "video: goto VIDEO failed — ABORT (no capture)"; close; exit 3; }
+                sleep 1; assert_scope VIDEO || { close; exit 3; }
+                shutter; sleep 4; shutter; sleep 2 ;;  # preview/record baseline
+  video8k)      launch; goto_main_mode VIDEO || { act "video8k: goto VIDEO failed — ABORT (no capture)"; close; exit 3; }
+                sleep 1; ensure_8k || { act "video8k: ensure_8k failed — ABORT (no capture)"; close; exit 3; }
+                assert_scope VIDEO || { close; exit 3; }
+                shutter; sleep 4; shutter; sleep 2 ;;  # #8 configure_streams/EISv2
   p010)         # D1 native P010/plane-layout contract: a real HDR Photo (P010) THEN a Master/Pro capture
                 # (the trace_p010_planes blob hooks only fire once libAlgoProcess loads + a P010 buffer flows).
                 launch; goto_main_mode PHOTO; sleep 1; shutter; sleep 7

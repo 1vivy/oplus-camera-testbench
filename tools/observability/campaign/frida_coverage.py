@@ -31,6 +31,7 @@ DATA_RE = re.compile(
     r'->\s*\{"|\]\s*->\s*\{"|"getOplus"|planeCount=|plane\[\d|\bHIT\b|\[HDR offsets\]|\bLEVER\('
     r'|processPreview x|beforeMetadata|onTransact|intCalls=[1-9]|strCalls=[1-9]|\(F\) hooked.*0x'
     r'|op_mode=0x|num_streams=|hdr_detected computed|\[HDRTrigger\]|\[HDRDetect\]|enable\(\+0x'
+    r'|holderPresent=[1-9]|APSParamsHolder\(\+0x|opmode=0x80'   # freeze-gate (+0x370 holder) + 8K op_mode
 )
 # FATAL: a hard attach/load failure. Only forces DEAD when NO install marker is present — narrow on
 # purpose: `is not a function` / `TypeError` also appear as benign per-FIELD read errors inside richly
