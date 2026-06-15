@@ -1,0 +1,16 @@
+=== condition verdict: freeze-gateb ===
+runs=2  mode=video8k session= ae_lock=0 selinux=Enforcing build=V16.1.0
+  symptom row                    stock value (run1)     determinism across runs
+  ------------------------------------------------------------------------------
+  #2  no-JPEG / fusion graph     124                    stable
+  #2  hdr_detected publish       present                stable
+  #4  copyMetadata UAF           False                  stable
+  #1  preview freeze             bt-captured(manual-rea stable
+  #3/G6 display HDR caps         hdr=SYSTEM ColorMode:: stable
+  #8  8K configure_streams -38   False                  stable
+  G5  OEM binder dropped         8                      stable
+
+  stimulus audit: shutter fired each run = [True, True] (false => stimulus did NOT run — check action log)
+
+  wrote /home/vivy/oplus-final/reference/campaign/freeze-gateb/verdict.json
+  ALL STABLE — decision-ready (still stock-only; LOS A/B deferred)

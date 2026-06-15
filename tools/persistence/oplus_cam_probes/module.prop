@@ -1,0 +1,6 @@
+id=oplus_cam_probes
+name=Oplus Camera Probes (dev instrumentation)
+version=1.0.0
+versionCode=10000
+author=vivy
+description=Camera bringup facilitation: (1) HOOKS — boot-persistent frida injection of the opt-in probe set (service.sh); (2) PATCHES — systemless context-preserving bind-mount overlay of validated vendor/odm blobs (post-fs-data.sh, replace-existing-only, disable-gated). Both INERT until configured. No whole-partition overlay, no camxoverridesettings.txt — avoids the 2026-06-13 bootloop class. Fails safe; never blocks boot. doc-50.

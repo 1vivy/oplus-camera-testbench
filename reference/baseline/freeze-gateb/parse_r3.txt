@@ -1,0 +1,15 @@
+r3-gralloc/parse_r3.py — join the r3 capture artifacts and print the divergence-column verdict.
+
+Reads one or two capture dirs (reference/r3/oos reference/r3/los), extracts the doc-42 §2.5 decision
+columns per side, and prints an OOS↔LOS comparison so the diverging column = the root.
+
+Columns (per side):
+  camxformat_mapped : libcamxexternalformatutils mapped in com.oplus.camera?      (10_ probe / maps)
+  dlopen_result     : in-app dlopen of the authority -> OK | NULL                  (R3|DLOPEN)
+  fallback_fires    : "Failed to link CamxFormatUtil" count                        (logcat / 10_ probe)
+  alloc_usage       : vendor usage bits the P010 buffer is born with               (R3|ALLOC)
+  lock_layout       : returned Cb offset / contiguity at lock                      ([lockYCbCr]/[PLANE_LAYOUTS])
+  blob_cb           : blob getPlaneLayout verdict (aligned vs garbage)             ([BLOB getPlaneLayout])
+
+Usage: parse_r3.py <dir> [<dir2>]      (stdlib only)
+

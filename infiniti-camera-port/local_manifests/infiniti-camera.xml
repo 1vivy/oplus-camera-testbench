@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  infiniti-camera-port :: local manifest snippet
+  ================================================
+  Pins the infiniti device-closure + camera-modification projects to the
+  1vivy forks on the unified camera-port branch `lineage-23.2-cam-final`.
+
+  This is the LOS-side consumer of the OOS-baseline camera work: build the
+  infiniti tree against these branches, land the los-impl/ patches on them,
+  then run the B-side diff (diff_oos_los.py) against the OOS baseline.
+
+  INSTALL (into a lineage-23.2 infiniti repo workspace) — see README.md for exact commands:
+    1. copy this file into  <tree>/.repo/local_manifests/
+    2. delete the stock     <tree>/.repo/local_manifests/infiniti.xml  (this snippet SUPERSEDES it)
+    3. repo sync (force-sync) the overridden project paths
+
+  Why delete the stock infiniti.xml: it carries an extend-project on
+  vendor/oneplus/sm8850-common; this snippet removes and re-adds that project
+  from the `vivy` remote, so the stale extend would clash.
+
+  cam-final BASE per repo (clean — no camera commits yet; los-impl patches land on the branch separately):
+    every repo .................... lineage-23.2
+    vendor_oplus_camera ........... A16                    (no lineage-23.2 branch upstream; koaaN OEM base)
+    android_device_qcom_sepolicy_vndr  lineage-23.2-caf-sm8850
+
+  NOT included (device closure that is NOT a OnePlus fork target / carries no camera change):
+    kernel/oneplus/sm8850 .......... = AOSP kernel/common @ android16-6.12-lts (remote=aosp, clone-depth=1)
+    kernel/oneplus/sm8850-devicetrees, -modules ... not synced by the infiniti manifest (kleaf platform tree)
+-->
+<manifest>
+
+  <remote name="vivy" fetch="https://github.com/1vivy" revision="lineage-23.2-cam-final" />
+
+  <!-- ===== device closure: OnePlus-SM8850-Development -> 1vivy@cam-final ===== -->
+  <remove-project name="OnePlus-SM8850-Development/android_device_oneplus_infiniti" />
+  <project path="device/oneplus/infiniti" name="android_device_oneplus_infiniti" remote="vivy" />
+
+  <remove-project name="OnePlus-SM8850-Development/android_device_oneplus_infiniti-kernel" />
+  <project path="device/oneplus/infiniti-kernel" name="android_device_oneplus_infiniti-kernel" remote="vivy" />
+
+  <remove-project name="OnePlus-SM8850-Development/android_device_oneplus_sm8850-common" />
+  <project path="device/oneplus/sm8850-common" name="android_device_oneplus_sm8850-common" remote="vivy" />
+
+  <remove-project name="OnePlus-SM8850-Development/proprietary_vendor_oneplus_infiniti" />
+  <project path="vendor/oneplus/infiniti" name="proprietary_vendor_oneplus_infiniti" remote="vivy" />
+
+  <remove-project name="OnePlus-SM8850-Development/proprietary_vendor_oneplus_sm8850-common" />
+  <project path="vendor/oneplus/sm8850-common" name="proprietary_vendor_oneplus_sm8850-common" remote="vivy" />
+
+  <remove-project name="OnePlus-SM8850-Development/android_hardware_oplus" />
+  <project path="hardware/oplus" name="android_hardware_oplus" remote="vivy" />
+
+  <!-- ===== camera-modification frameworks: LineageOS -> 1vivy@cam-final (carry los-impl patches) ===== -->
+  <remove-project name="LineageOS/android_frameworks_av" />
+  <project path="frameworks/av" name="android_frameworks_av" remote="vivy" groups="pdk,sysui-studio" />
+
+  <remove-project name="LineageOS/android_frameworks_base" />
+  <project path="frameworks/base" name="android_frameworks_base" remote="vivy" groups="pdk-cw-fs,pdk-fs,sysui-studio" />
+
+  <remove-project name="LineageOS/android_frameworks_native" />
+  <project path="frameworks/native" name="android_frameworks_native" remote="vivy" groups="pdk" />
+
+  <!-- ===== camera-port additions (NOT in the base manifest) ===== -->
+  <!-- OEM camera vendor blobs + stubs + sepolicy (koaaN-lineage form: opluscamera.mk / vendorsetup.sh) -->
+  <project path="vendor/oplus/camera" name="vendor_oplus_camera" remote="vivy" />
+  <!-- caf sepolicy_vndr for sm8850 — base lineage.xml ALREADY ships it from OnePlus-SM8850-Development;
+       OVERRIDE to 1vivy@cam-final (adds the opluscamera_app xdsp + offlinecamera denials) -->
+  <remove-project name="OnePlus-SM8850-Development/android_device_qcom_sepolicy_vndr" />
+  <project path="device/qcom/sepolicy_vndr/sm8850" name="android_device_qcom_sepolicy_vndr" remote="vivy" groups="qcom,kaanapali-vendor" />
+
+</manifest>

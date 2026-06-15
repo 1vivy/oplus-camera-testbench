@@ -1,0 +1,3 @@
+{ "condition":"freeze-gateb", "mode":"video8k", "preflight":"ready", "modes_gate":"PASS",
+  "lanes":{ "core":"ran", "strace":"skipped" }, "signal":"all-stable",
+  "los_ref":"", "verdict":"GOLDEN" }

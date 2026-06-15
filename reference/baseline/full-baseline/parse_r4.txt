@@ -1,0 +1,1 @@
+single-side (no LOS ref): r4/strace are pure differs — raw artifacts only

@@ -1,0 +1,4 @@
+== validate_modes K=2 modes=[video8k] @ Sun Jun 14 19:32:57 MDT 2026 ==
+  video8k      2/2  GRADUATE
+----
+GATE: PASS — all modes reached K/K; cleared for Phase 1b.

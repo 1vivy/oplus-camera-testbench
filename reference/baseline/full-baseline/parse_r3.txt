@@ -1,0 +1,12 @@
+------------------------------------------------------------------------------
+  dir              : /home/vivy/oplus-final/reference/r3/full-baseline
+  camxformat_mapped: YES (reachable in-app)
+  dlopen_result    : ?
+  fallback_fires   : 0
+  alloc records    : 0
+  camxformat syms  : CamxFormatUtil_GetPlaneAlignment in-process=absent (not loaded here) | CamxFormatUtil_GetPlaneCount in-process=absent (not loaded here) | CamxFormatUtil_GetUBWCInfo in-process=absent (not loaded here)
+
+==============================================================================
+VERDICT (doc-42 §2.5 decision columns)
+==============================================================================
+Single side captured — run the other (OOS or LOS) for the A/B. Per-side facts above.

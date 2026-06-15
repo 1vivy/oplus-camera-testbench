@@ -1,0 +1,35 @@
+# oplus-camera-testbench — keep the harness + docs; ignore bulk data, clones, binaries, transient state.
+
+# --- transient / tooling state ---
+.omc/
+__pycache__/
+*.pyc
+*.pyo
+
+# --- upstream Android reference clones (~31G; the README repo table is the manifest) ---
+/dodge-camera-port/repos/
+/infiniti-camera-port/repos/
+
+# --- vendored binaries (pushed to device, not source; obtain per the relevant README) ---
+**/frida-inject
+**/strace.aarch64
+
+# --- persistence module runtime state (regenerated on device) ---
+tools/persistence/oplus_cam_probes/.state/
+tools/persistence/oplus_cam_probes/injector.log
+
+# --- raw capture data / device logs (kept LOCAL): commit only the docs + small baseline manifests ---
+/reference/*
+!/reference/README.md
+!/reference/AGENTS.md
+!/reference/baseline/
+/reference/baseline/*
+!/reference/baseline/*/
+!/reference/baseline/*/BASELINE.md
+!/reference/baseline/*/verdict.json
+!/reference/baseline/*/PREFLIGHT.md
+!/reference/baseline/*/validate_modes_report.txt
+
+# --- stray capture artifacts anywhere ---
+*.strace
+*.log

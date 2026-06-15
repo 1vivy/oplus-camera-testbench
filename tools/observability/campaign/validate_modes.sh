@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# campaign/validate_modes.sh — Phase-1a RELIABILITY GATE.
+# Runs each UI mode K times from a clean cold start and asserts the driver DETERMINISTICALLY reached the
+# intended mode/state, by checking the verified nav markers drive_cycle.sh emits to its action log:
+#   - goto_main_mode <M> OK   is logged ONLY when current_mode actually equals <M> (in-function verified)
+#   - tap_desc '<DESC>' -> ..  is logged only when the MORE-grid @more_item was found + tapped
+#   - tap_id <rid> -> (x,y)    is logged only when a toggle node was found + tapped (vs "NOT FOUND")
+#   - "ensure 8K"              is logged after the VIDEO resolution=8K selection
+# A mode GRADUATES to Phase 1b only if it reaches K/K. Flaky modes are reported (reach-rate) so they can be
+# fixed (resmap/calibration) or quarantined — never silently captured. This is the navigation-reliability
+# analogue of parse_condition.py's signal-determinism gate, applied UPSTREAM.
+#
+# Usage: tools/observability/campaign/validate_modes.sh [K] [mode ...]
+#   K        repeats per mode (default 3)
+#   mode...  subset to validate (default: the full matrix)
+# Prereqs: adb + rooted (KernelSU). READ-ONLY w.r.t. partitions. Pushes the capture/ tree first.
+set -u
+K="${1:-3}"; case "$K" in ''|*[!0-9]*) K=3;; *) shift || true;; esac
+DEV_UI=/data/local/tmp/obs-capture/ui
+LOG=/data/local/tmp/obs_ui_action.log
+HERE="$(cd "$(dirname "$0")" && pwd)"
+REPO="$(cd "$HERE/../../.." && pwd)"
+OUT="$REPO/reference/validate_modes"; mkdir -p "$OUT"
+REPORT="$OUT/report.txt"
+
+ALL_MODES="photo scene burst holdshutter video video8k portrait text selfie motionphoto beauty filter night longexp scandoc switch"
+MODES="${*:-$ALL_MODES}"
+
+# required log markers per mode (a run passes iff ALL are present and no nav FAILED). '|' separates ANDed patterns.
+required() {
+  case "$1" in
+    photo|scene|burst|holdshutter) echo 'goto_main_mode PHOTO OK' ;;
+    video)        echo 'goto_main_mode VIDEO OK' ;;
+    video8k)      echo 'goto_main_mode VIDEO OK|ensure 8K' ;;
+    portrait)     echo 'goto_main_mode PORTRAIT OK' ;;
+    text)         echo 'goto_main_mode TEXT OK' ;;
+    selfie|switch)   echo 'goto_main_mode PHOTO OK|switch_camera_button -> (' ;;
+    motionphoto)  echo 'goto_main_mode PHOTO OK|live_photo -> (' ;;
+    beauty)       echo 'goto_main_mode PHOTO OK|camera_menu_left_enter_button -> (' ;;
+    filter)       echo 'goto_main_mode PHOTO OK|camera_menu_right_enter_button -> (' ;;
+    night)        echo "tap_desc 'NIGHT' -> (" ;;
+    longexp)      echo "tap_desc 'LONG EXPOSURE' -> (" ;;
+    scandoc)      echo "tap_desc 'SCAN DOCS' -> (" ;;
+    *)            echo 'complete' ;;
+  esac
+}
+
+echo "== validate_modes K=$K modes=[$MODES] @ $(date) ==" | tee "$REPORT"
+adb shell 'rm -rf /data/local/tmp/obs-capture' >/dev/null 2>&1
+adb push "$REPO/tools/observability/capture" /data/local/tmp/obs-capture >/dev/null 2>&1
+adb shell 'su -c "chmod -R 755 /data/local/tmp/obs-capture"' >/dev/null 2>&1
+
+gate_pass=1
+for m in $MODES; do
+  pats="$(required "$m")"; reach=0
+  for k in $(seq 1 "$K"); do
+    adb shell "su -c 'rm -f $LOG; sh $DEV_UI/drive_cycle.sh $m'" >/dev/null 2>&1
+    sect="$(adb shell "su -c 'cat $LOG'" 2>/dev/null | tr -d '\r')"
+    ok=1
+    # ALL ANDed patterns must be present
+    IFS='|'; for p in $pats; do echo "$sect" | grep -qF "$p" || ok=0; done; unset IFS
+    # any nav FAILED voids the run
+    echo "$sect" | grep -q 'FAILED' && ok=0
+    [ "$ok" = 1 ] && reach=$((reach+1))
+  done
+  if [ "$reach" = "$K" ]; then verdict="GRADUATE"; else verdict="FLAKY"; gate_pass=0; fi
+  printf "  %-12s %d/%d  %s\n" "$m" "$reach" "$K" "$verdict" | tee -a "$REPORT"
+done
+echo "----" | tee -a "$REPORT"
+if [ "$gate_pass" = 1 ]; then
+  echo "GATE: PASS — all modes reached K/K; cleared for Phase 1b." | tee -a "$REPORT"
+else
+  echo "GATE: HOLD — fix/quarantine FLAKY modes before baseline capture." | tee -a "$REPORT"
+fi
+echo "report: $REPORT"

@@ -1,0 +1,11 @@
+# oplus_cam_probes patch-overlay manifest — INERT by default (no entries = no mounts).
+# Format:  <target_abs_path>  <source_rel_under_patches>  [selinux_context|auto]
+#
+# Drop the replacement blob under patches/<source_rel> and add a line here. Rules (enforced by
+# lib/mount_patches.sh, learned from the 2026-06-13 bootloop): replace-existing-only (never a new path),
+# context preserved from the target, /vendor per-file replace is OK but NEVER a whole-/vendor overlay,
+# never /mnt/vendor/persist. Validate each blob off the daily driver first. doc-50 + KERNELSU-MOUNT-NOTES.
+#
+# Examples (commented — wire deliberately, one at a time, with a reboot + injector/patches.log check):
+# /odm/lib64/camera.oemlayer.v2.so      odm/lib64/camera.oemlayer.v2.so      auto
+# /vendor/lib64/libAlgoProcess.so       vendor/lib64/libAlgoProcess.so       auto

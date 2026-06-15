@@ -1,0 +1,11 @@
+# bundle.manifest — which probe scripts make up each agent bundle (built by build_bundle.sh).
+# _anchor.js is ALWAYS prepended (it provides the OTA-resilient resolver + global Anchor). doc-50.
+# Format: <bundle>: <space-separated probe basenames under tools/frida or observability kits>
+#
+# server  -> cameraserver depth: the OEM media.camera transaction receiver (now frida-17-correct).
+# app     -> com.oplus.camera: safe observe-only set (native getmetadata + Java preview/EDR).
+# provider-> heavier CamX/CHI levers (opt-in; not in default probes.conf).
+
+server:   observability/r4-oem-transact/20_trace_ext_transact.js frida/hook_before_configure_streams.js frida/probe_get_extension_opmode.js
+app:      frida/observe_getmetadata.js frida/trace_preview_delivery.js frida/trace_edr_invocation.js frida/probe_aps_preview_routine.js frida/probe_sendinputdata_gate.js
+provider: frida/enable_camx_logging.js frida/unclobber_camx_logs.js frida/hook_configure_streams.js

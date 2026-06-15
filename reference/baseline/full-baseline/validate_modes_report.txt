@@ -1,0 +1,4 @@
+== validate_modes K=2 modes=[photo] @ Sun Jun 14 18:46:52 MDT 2026 ==
+  photo        2/2  GRADUATE
+----
+GATE: PASS — all modes reached K/K; cleared for Phase 1b.

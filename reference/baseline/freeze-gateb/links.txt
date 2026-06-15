@@ -1,0 +1,3 @@
+campaign:  /home/vivy/oplus-final/reference/campaign/freeze-gateb/
+r3:        /home/vivy/oplus-final/reference/r3/freeze-gateb/
+r4:        /home/vivy/oplus-final/reference/r4/freeze-gateb/

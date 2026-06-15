@@ -1,0 +1,10 @@
+# Canonical replay session — RGB-fan high-DR scene, AE/AF locked, single photo.
+# Deterministic stimulus for the #2/#3 HDR-family de-confound. Replayed by:
+#   drive_cycle.sh replay rgbfan-photo-aelock   (launch is done by drive_cycle before this file)
+# Coords for OnePlus CPH2747 / V16.1.0 (1272x2772): preview center 636,1100; shutter_button 635,2261.
+# VALIDATE on the live scene: replay, screencap, confirm the "AE/AF locked" badge + scene match.
+sleep 1
+aelock                 # long-press preview center -> lock AE/AF on the fan (pins exposure)
+sleep 2
+tap 635 2261           # shutter (shutter_button center)
+sleep 5
