@@ -23,7 +23,7 @@ SHUTTER_XY="635 2261"   # verified shutter_button center (V16.1.0)
 # app-side probes only
 APP_PROBES=""
 for p in $EXTRA_PROBES; do
-  case "$p" in trace_edr_invocation|trace_motionphoto|probe_getoplushwbuffer|trace_preview_delivery|trace_p010_planes|trace_aps_metadata_lifecycle|trace_turbohdr_tag|trace_gralloc_p010_chain|probe_aps_preview_routine|probe_sendinputdata_gate) APP_PROBES="$APP_PROBES $p";; esac
+  case "$p" in trace_edr_invocation|trace_motionphoto|probe_getoplushwbuffer|trace_preview_delivery|trace_p010_planes|trace_aps_metadata_lifecycle|trace_turbohdr_tag|trace_gralloc_p010_chain|probe_aps_preview_routine|probe_sendinputdata_gate|trace_arcsoft_io) APP_PROBES="$APP_PROBES $p";; esac
 done
 [ -z "$APP_PROBES" ] && { echo "condition '$COND' declares no APP-side probes — nothing to do."; exit 0; }
 
@@ -49,6 +49,10 @@ for probe in $APP_PROBES; do
     trace_edr_invocation|trace_preview_delivery|trace_gralloc_p010_chain)
       adb shell input tap 1062 2261 >/dev/null 2>&1; sleep 4   # -> front (reconfigure preview → re-alloc/re-emit)
       adb shell input tap 1062 2261 >/dev/null 2>&1; sleep 4 ;; # -> back (HDR preview; setEdr*/gralloc alloc re-fire)
+    trace_arcsoft_io)
+      # WARM-UP capture: the ArcSoft fusion engine dlopens on the first real capture; trace_arcsoft_io's poller
+      # then hooks it. Fire one throwaway capture so the MEASURED shutter below sees the hooked engine fire.
+      adb shell input tap $SHUTTER_XY >/dev/null 2>&1; sleep 7 ;;
   esac
   # 3) fire the shutter so the probe sees the capture-path invocation; dwell
   adb shell input tap $SHUTTER_XY >/dev/null 2>&1; sleep 6

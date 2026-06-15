@@ -32,6 +32,7 @@ DATA_RE = re.compile(
     r'|processPreview x|beforeMetadata|onTransact|intCalls=[1-9]|strCalls=[1-9]|\(F\) hooked.*0x'
     r'|op_mode=0x|num_streams=|hdr_detected computed|\[HDRTrigger\]|\[HDRDetect\]|enable\(\+0x'
     r'|holderPresent=[1-9]|APSParamsHolder\(\+0x|opmode=0x80'   # freeze-gate (+0x370 holder) + 8K op_mode
+    r'|\[ARCIO ARC|\[DMABUF\] len=|\[IALLOC (?:req|out)\]'        # alloc-chain: ArcSoft I/O struct, dma_heap len, gralloc HAL desc
 )
 # FATAL: a hard attach/load failure. Only forces DEAD when NO install marker is present — narrow on
 # purpose: `is not a function` / `TypeError` also appear as benign per-FIELD read errors inside richly
@@ -82,7 +83,7 @@ def main():
 
     APP = {'trace_edr_invocation','trace_motionphoto','probe_getoplushwbuffer','trace_preview_delivery',
            'trace_p010_planes','trace_aps_metadata_lifecycle','trace_turbohdr_tag','trace_gralloc_p010_chain',
-           'probe_aps_preview_routine','probe_sendinputdata_gate'}
+           'probe_aps_preview_routine','probe_sendinputdata_gate','trace_arcsoft_io'}
     SERVER = {'hook_before_configure_streams','probe_get_extension_opmode'}
     fdir = os.path.join(repo, 'reference/campaign', cond, 'frida')
     adir = os.path.join(repo, 'reference/campaign', cond, 'app_probes')

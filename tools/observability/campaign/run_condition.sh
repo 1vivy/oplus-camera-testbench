@@ -65,13 +65,16 @@ if [ "$have_frida" = 1 ]; then
   attach_provider unclobber_camx_logs          # CHI tag survives configure
   for p in $EXTRA_PROBES; do
     case "$p" in
-      dump_camxsettings|probe_aec_hdrdetect|probe_aec_getparam|hook_configure_streams|hook_eisv2_ports|observe_getmetadata)
+      dump_camxsettings|probe_aec_hdrdetect|probe_aec_getparam|hook_configure_streams|hook_eisv2_ports|observe_getmetadata|trace_dmabuf_alloc)
+        # trace_dmabuf_alloc decodes dma_heap_allocation_data.len per camera DMA_HEAP_IOCTL_ALLOC (provider-side
+        # ION alloc that bypasses gralloc — the earliest-divergence size field for the alloc-chain A/B).
         attach_provider "$p" ;;
       hook_before_configure_streams|probe_get_extension_opmode)
         # SERVER-side: CameraServiceExtImpl Depth-2 hooks live in cameraserver's libcsextimpl (TIER-2 8K)
         attach_server "$p" ;;
-      trace_edr_invocation|trace_motionphoto|probe_getoplushwbuffer|trace_preview_delivery|trace_p010_planes|trace_aps_metadata_lifecycle|trace_turbohdr_tag|trace_gralloc_p010_chain|probe_aps_preview_routine|probe_sendinputdata_gate)
-        # APP-side: libAlgoProcess/OCS-SDK + the EDR/HwBuffer JNI + APS preview engine live in com.oplus.camera
+      trace_edr_invocation|trace_motionphoto|probe_getoplushwbuffer|trace_preview_delivery|trace_p010_planes|trace_aps_metadata_lifecycle|trace_turbohdr_tag|trace_gralloc_p010_chain|probe_aps_preview_routine|probe_sendinputdata_gate|trace_arcsoft_io)
+        # APP-side: libAlgoProcess/OCS-SDK + the EDR/HwBuffer JNI + APS preview engine + the ArcSoft fusion
+        # engines (trace_arcsoft_io) live in com.oplus.camera
         echo "   frida: '$p' is APP-side -> app_probe_capture.sh $COND" ;;
       *) echo "   frida: unknown probe '$p'" ;;
     esac

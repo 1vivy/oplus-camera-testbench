@@ -23,8 +23,12 @@ REPO="$(cd "$HERE/../../.." && pwd)"
 OUT="$REPO/reference/validate_modes"; mkdir -p "$OUT"
 REPORT="$OUT/report.txt"
 
-ALL_MODES="photo scene burst holdshutter video video8k portrait text selfie motionphoto beauty filter night longexp scandoc switch"
+ALL_MODES="photo scene burst holdshutter video video8k portrait text selfie motionphoto beauty filter night longexp scandoc switch p010 masterraw"
 MODES="${*:-$ALL_MODES}"
+
+# expected FOREGROUND app per mode — the scene-reality check below asserts the run actually LANDED here, not
+# on a permission popup / the home screen (the after-close poison). scandoc launches a SEPARATE app.
+expect_fg() { case "$1" in scandoc) echo 'com.coloros.ocrscanner' ;; *) echo 'com.oplus.camera' ;; esac; }
 
 # required log markers per mode (a run passes iff ALL are present and no nav FAILED). '|' separates ANDed patterns.
 required() {
@@ -41,6 +45,8 @@ required() {
     night)        echo "tap_desc 'NIGHT' -> (" ;;
     longexp)      echo "tap_desc 'LONG EXPOSURE' -> (" ;;
     scandoc)      echo "tap_desc 'SCAN DOCS' -> (" ;;
+    p010)         echo 'goto_main_mode PHOTO OK|goto_main_mode MASTER OK' ;;   # two-shot PHOTO(P010)->MASTER
+    masterraw)    echo 'goto_main_mode MASTER OK|masterraw: reset format' ;;   # MASTER + RAW switch + JPG reset
     *)            echo 'complete' ;;
   esac
 }
@@ -52,16 +58,28 @@ adb shell 'su -c "chmod -R 755 /data/local/tmp/obs-capture"' >/dev/null 2>&1
 
 gate_pass=1
 for m in $MODES; do
-  pats="$(required "$m")"; reach=0
+  pats="$(required "$m")"; want_fg="$(expect_fg "$m")"; reach=0
   for k in $(seq 1 "$K"); do
-    adb shell "su -c 'rm -f $LOG; sh $DEV_UI/drive_cycle.sh $m'" >/dev/null 2>&1
+    # DRIVE_NO_CLOSE=1 leaves the app UP so the scene-reality check below sees the REAL destination (a plain
+    # close would force-stop -> the post-check would read the home screen, the documented after-close poison).
+    adb shell "su -c 'rm -f $LOG; DRIVE_NO_CLOSE=1 sh $DEV_UI/drive_cycle.sh $m'" >/dev/null 2>&1
     sect="$(adb shell "su -c 'cat $LOG'" 2>/dev/null | tr -d '\r')"
     ok=1
-    # ALL ANDed patterns must be present
+    # (1) ALL ANDed log markers must be present
     IFS='|'; for p in $pats; do echo "$sect" | grep -qF "$p" || ok=0; done; unset IFS
-    # any nav FAILED voids the run
+    # (2) any nav FAILED voids the run
     echo "$sect" | grep -q 'FAILED' && ok=0
+    # (3) SCENE REALITY — markers alone don't prove we captured the intended scene (a mis-tap into a popup /
+    #     wrong app still logs the tap). Assert the foreground IS the expected app AND the screenshot is a real
+    #     preview (MBs), not the ~82KB permission popup. This is the "coverage != what-we-wanted" guard.
+    fg="$(adb shell 'dumpsys window' 2>/dev/null | grep -m1 mCurrentFocus | tr -d '\r')"
+    adb shell 'screencap -p /sdcard/_vm.png' 2>/dev/null
+    ssz="$(adb shell 'stat -c %s /sdcard/_vm.png' 2>/dev/null | tr -d '\r')"; adb shell 'rm -f /sdcard/_vm.png' 2>/dev/null
+    case "$fg" in *"$want_fg"*) : ;; *) ok=0 ;; esac
+    [ -n "$ssz" ] && [ "$ssz" -lt 300000 ] && ok=0
     [ "$ok" = 1 ] && reach=$((reach+1))
+    adb shell 'am force-stop com.oplus.camera' >/dev/null 2>&1   # restore the cold start for the next repeat
+    [ "$m" = scandoc ] && adb shell 'am force-stop com.coloros.ocrscanner' >/dev/null 2>&1
   done
   if [ "$reach" = "$K" ]; then verdict="GRADUATE"; else verdict="FLAKY"; gate_pass=0; fi
   printf "  %-12s %d/%d  %s\n" "$m" "$reach" "$K" "$verdict" | tee -a "$REPORT"
