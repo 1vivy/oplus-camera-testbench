@@ -50,6 +50,15 @@ Either branch is NOT the allocator and NOT the mapper version.
   old "gralloc" framing. Conviction (which upstream field actually moves) resolves only at the A/B; the byte-
   identical blobs are sites, never roots.
 
+## v1.4 A/B update (2026-06-16)
+
+The requested OOS<->LOS split now exists for the current port. For v1.4, the P010 evidence no longer points at
+the allocator or mapper, and it also no longer justifies a fresh gralloc shim: the app-side P010 chain reaches
+public `YCBCR_P010`, reports three planes, and then fails later in BasicTone's GL save path. Keep this note as
+the allocator/mapper rule-out, but pair it with `gralloc-p010-chain-RE.md` and
+`docs/rearch/51-los-v14-oos-ab-preliminary.md` for the current fix target: BasicTone output contract first,
+shim removal after green replay.
+
 ## Probes that carry this (the golden + the A/B oracle)
 `trace_dmabuf_alloc.js` (provider, dma `len`), `trace_arcsoft_io.js` (consumer I/O struct), the existing
 `trace_gralloc_p010_chain.js`/`trace_p010_planes.js` (realized layout / impliedAlignedH), `hook_configure_streams`

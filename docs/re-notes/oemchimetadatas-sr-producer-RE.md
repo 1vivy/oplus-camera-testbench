@@ -226,6 +226,17 @@ never called → break is upstream (libAlgoProcess SR engine not emitting `com.o
 ccmData, OR the OEM AWB stats processor not wired). If called but values null → break is the SR/AWB compute
 input. This single hook splits (a) engine-not-producing vs (b) publish-not-firing vs (c) processor-not-wired.
 
+## v1.4 baseline correction (2026-06-16)
+
+The current `full-baseline` is decision-ready for normal photo and does not show the old no-save shape: shutter
+fires, `hdr_detected` is present, `copyMetadata` UAF is false, and the preview overexposure does not propagate to
+the saved JPEG. Therefore this note should be scoped as a **mode-specific SR/CCM/OEMLayer gate**, not the current
+preview-overexposure root and not downstream of the EDR/SF failure.
+
+Keep the independent-gate verdict: `oemChimetadatas`/fusion and SR-CCM can diverge separately. Use this RE when
+HDR/SR/beauty/night captures show missing OEM metadata or `OverrideIPECCMData` failures; do not use it to explain
+normal-photo preview tonemapping.
+
 ## Anchors / files of record
 - Ghidra project `oos-baseline-v3` (socket `/run/user/1000/ghidra-mcp/…`): programs `com.qti.chi.override.so`,
   `com.qti.hwcfg.ipe.so` (imported + annotated this session; plate comments @ `0x11894c`, `0x3c30f0`, `0x42cc38`;

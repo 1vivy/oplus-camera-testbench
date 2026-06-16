@@ -128,6 +128,23 @@ if no clean upstream lever produces that value and the consumer must defend itse
   participant in it — so libapsfixup cannot break sub-contract (b)'s lifetime invariant, and removing it (after
   the Family II provider fix) leaves the lifecycle ordering exactly as stock holds it.
 
+## v1.4 baseline supersession (2026-06-16)
+
+The symbol inventory and "metadata reach is adjacent, not participatory" verdict still stand. What changes with
+the v1.4 LOS/OOS baseline is the retirement ranking:
+
+- Normal photo capture now works and saved JPEGs are not overexposed, so `libapsfixup` is not the preview EDR
+  fix and should not be used as a broad OOS-to-LOS API translation layer.
+- The P010 lane has moved past the old gralloc/plane-layout suspicion. The current failure is later, in
+  `libBasicTonePhoto.so` `BasicTone_OGL::saveOutImg()`. That makes wrapper #4's area (BasicTone output
+  writability/GL contract) closer to the observed crash than wrappers #1-#3, but the shipped wrapper is inert and
+  should not be "activated" as the first fix. Fix the upstream BasicTone buffer contract instead.
+- Wrappers #5 and #6 remain retireable upstream guards (`copyMetadata` lifetime and TurboHDR string publish).
+  They are not evidence that the still-photo path is currently broken in v1.4.
+
+Practical v1.4 rule: drop `libapsfixup` only after normal photo and P010/Pro replay both pass without the
+BasicTone crash. Do not keep it for the preview-overexposure symptom; that belongs to the EDR/SF path.
+
 ## Pairing with the stock P010 contract (`trace_p010_planes.log`)
 
 The captured stock contract — `camApsBufferLockPlanes` returning **planeCount=1 / rowStride=5120 /

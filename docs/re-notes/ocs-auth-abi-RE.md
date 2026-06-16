@@ -1,13 +1,13 @@
 <!-- STATUS: VERIFIED (Ghidra surfaceflinger-300 + jadx oplus-framework-300.jar + OCS SDK jar, 2026-06-15)
-     separated from INFERENCE. Static RE only; no A/B run here. The "OCS-auth gap ⇒ no-JPEG" causal claim stays
-     INFERENCE/SUPPORTED-by-mechanism until LOS A/B (AOSP SF+framework lack the entire subsystem). -->
-# OCS client-auth → SurfaceFlinger ABI (the #1 save-blocker) — static RE
+     separated from INFERENCE. Static RE only. The earlier "OCS-auth gap => no-JPEG" framing is superseded by
+     the v1.4 LOS/OOS baseline: this is now scoped as preview EDR/SF interop, not a still-save root. -->
+# OCS client-auth → SurfaceFlinger ABI (preview EDR auth gate) — static RE
 
 > Phase-3 reverse-engineering of the **OnePlus Camera SDK (OCS) client-auth extension** that AOSP SurfaceFlinger
 > + AOSP framework LACK on LOS. This is the path that, on OOS, records a per-process **OcsAuthInfo** in SF and
-> unlocks the OEM EDR/extension composition (`customVendorTag 120 → oemChimetadatas 1 → SAT-Fusion reprocess →
-> JPEG`). On LOS the chain is dead ⇒ `customVendorTag 0` ⇒ `oemChimetadatas 0` ⇒ plain offline reprocess ⇒ no
-> image saved.
+> unlocks the OEM EDR composition gate. The old draft tied that gate to `customVendorTag 120 →
+> oemChimetadatas 1 → SAT-Fusion reprocess → JPEG`; the v1.4 baseline refines that into a preview EDR/SF
+> contract. Saved stills can be correct while this path remains absent.
 >
 > Date: 2026-06-15 · Three sources, all from the **OOS `dump300_full` reference** (`vivy@10.9.20.67`):
 > - **SF server** (Ghidra): `system/bin/surfaceflinger` → local `/tmp/ocs-re/surfaceflinger-300`
@@ -225,9 +225,10 @@ return checkOcsPermission(OplusClientRecorder::get(), procName, required) ? 1 : 
 **`0x80000000`=EDR-type-1, `0x40000000`=type-2, `0x20000000`=type-4, `0x10000000`=type-5.**
 The camera grants itself **`0x80000000`** = EDR-type-1, the primary HDR/EDR composition path. When the grant is
 present in `mOcsAuthInfoMap[procName]`, this gate returns true ⇒ the OEM EDR composition (the 0x5C
-view-transform tonemap, `edr-sf-readside-RE.md`) is applied ⇒ the OEM extension/SAT-fusion render path proceeds
-⇒ JPEG. On LOS the whole subsystem is absent ⇒ the gate (and the upstream EDR readers) never run ⇒ the OEM
-path is never unlocked.
+view-transform tonemap, `edr-sf-readside-RE.md`) is applied. Older notes projected this through the SAT-fusion
+JPEG path; the v1.4 baseline splits those axes and keeps this as an EDR/preview composition gate. On LOS the
+whole subsystem is absent ⇒ the gate (and the upstream EDR readers) never run ⇒ the OEM EDR path is never
+unlocked.
 
 > Note: this gate sits in the **SF EDR composition** subsystem, the read counterpart of the EDR write-side
 > (`edr-sf-readside-RE.md` `setEdrMetadata`/`GameEdr::setEDRStatus`). The `+0x6c8` object is the per-layer OEM
@@ -254,18 +255,30 @@ path is never unlocked.
   from the SF channel; both carry the same `(uid,pid,permBits,pkg)`. (A3)
 - Both OOS builds (`.300`, `.201`, same `BP2A.250605.015`) ship the OCS subsystem (strings present in both SF).
 
-**INFERENCE (NOT proven here — LOS A/B deferred; SCHEMA G-SYM):**
-- That the SF OCS-auth gap is **the** (or a) root of the LOS no-JPEG. It is a facilitation gap: AOSP SF and AOSP
-  framework lack the entire subsystem, so on LOS `notifyAuthInfo` has no client AND SF would `UNKNOWN_TRANSACTION
-  (−38)` it anyway, AND the composition gate doesn't exist. SUPPORTED-by-mechanism; convict via OOS↔LOS A/B
-  (Frida: confirm OOS fires `notifyAuthInfo(...,0x80000000,...)` at camera open and the gate returns true; LOS
-  absent).
+**INFERENCE (refined by v1.4 A/B; SCHEMA G-SYM):**
+- That the SF OCS-auth gap is the root of the LOS **preview EDR** mismatch. It is a facilitation gap: AOSP SF and
+  AOSP framework lack the subsystem, so on LOS `notifyAuthInfo` has no client, SF would `UNKNOWN_TRANSACTION
+  (−38)` it anyway, and the composition gate does not exist. SUPPORTED-by-mechanism; convict via an OOS live hook
+  of `notifyAuthInfo(...,0x80000000,...)` plus the SF gate. Do not carry the old stronger claim that this is a
+  still-photo/no-JPEG root: v1.4 saved JPEGs are normal while preview remains overexposed.
 - The exact **camera** caller of `OplusSurfaceComposerClient.notifyAuthInfo` (the trigger site + the uid/pid it
   passes). Satellite caller is verified; camera caller is not pinned (A2 follow-up: live Frida hook).
 - The consumer `0x4f43ac` is vtable-reached; its owning EDR class name and the precise per-layer call site were
   not fully resolved (the gate logic + the checkOcsPermission edge ARE verified).
 
 ---
+
+## v1.4 baseline correction (2026-06-16)
+
+`docs/rearch/51-los-v14-oos-ab-preliminary.md` changes the interpretation of this RE:
+
+- Keep the verified ABI: Java write side, SF native recorder, `0x5dc1`, `safe.MEDIA`, and the EDR-type-1
+  permission bit `0x80000000`.
+- Drop the old still-save framing. v1.4 normal photo reaches shutter/save; the user-visible failure is preview
+  overexposure, and the EDR/SF lane is the matching subsystem.
+- Treat the patch plan below as part of an OOS-shaped EDR preview implementation. If the port intentionally uses
+  a surgical SDR-preview workaround, the OCS recorder is optional for that symptom and should not be used to
+  justify broad OOS-to-LOS API translation stubs.
 
 ## LOS-impl PATCH PLAN
 

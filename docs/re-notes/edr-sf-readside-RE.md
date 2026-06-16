@@ -142,6 +142,24 @@ not a contradiction. doc-49's core claim — *AOSP SF lacks this read path, so t
 the lever the port must reproduce* — is confirmed by the presence of this entire OEM read subsystem in
 the stock SF binary.
 
+## v1.4 LOS/OOS baseline reconciliation (2026-06-16)
+
+The v1.4 A/B baseline promotes this note from a static mechanism to the current top preview interop candidate.
+OOS `trace_edr_invocation` gets the preview BLAST `SurfaceControl` and successfully calls `setEdrFlags`; LOS
+returns `null` for the same GLRootView path. SurfaceFlinger also splits the same way: OOS presents the preview
+as HLG with desired HDR/SDR ratio `5.0`, while LOS still sees an HDR layer but leaves desired ratio/dimming at
+`1.0`.
+
+That matches the observed symptom boundary: preview is overexposed, UI and thumbnails are sane, and saved JPEGs
+are not overexposed. So D4/G6 is now a preview-composition contract, not evidence that still APS processing is
+broken. Patch direction is either:
+
+1. reproduce the OOS-shaped EDR write/read/auth chain (`OplusEdrUtils`/libgui transaction fields, SF read-side,
+   and the OCS auth gate in `ocs-auth-abi-RE.md`), or
+2. make the product decision to force only camera preview to SDR and leave the still-capture chain alone.
+
+Cross-reference: `docs/rearch/51-los-v14-oos-ab-preliminary.md` ranks this as the strongest LOS/OOS divergence.
+
 ## Anchors
 - `rearch/49-libgui-edr-abi-re.md` (write side / WRITE offsets), D4 `render-sf-edr.md` §(a)/(b),
   doc-46 §177-178 (OPLUS_CODE_SET_HDR_VISION_STATUS), doc-40 (over-exposure = OplusEdrUtils no-op).

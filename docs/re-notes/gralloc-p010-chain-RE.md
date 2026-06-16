@@ -125,8 +125,26 @@ signature that libapsfixup Family-I (`wrap_p010`/`wrap_arc`/`wrap_arc_tfrsn`) re
 **same** `chroma = luma + page_align(⅔·avail)` the mapper already laid down. This is the **irreducible
 consumer-side ABI lock-math mismatch** doc-42/rearch-14 named — now *walked* to its producer math, not merely
 asserted: the mapper is correct and identical, the consumer descriptor path is where the contiguity is lost,
-and Family-I is the accepted consumer-side defense (no clean upstream lever, because the upstream — the mapper —
-is already correct).
+and Family-I was the pre-v1.4 accepted consumer-side defense (no clean upstream lever, because the upstream —
+the mapper — is already correct). The v1.4 supersession below narrows that conclusion for the current port.
+
+## v1.4 baseline supersession (2026-06-16)
+
+The producer RE above remains valid, but the old "Family-I is irreducible, therefore keep the shim" conclusion
+is not the current v1.4 patchset direction. The latest LOS/OOS A/B in
+`docs/rearch/51-los-v14-oos-ab-preliminary.md` shows the P010 allocation/lock shape has converged enough for the
+observed failure to move later:
+
+- LOS v1.4 allocates public `format=0x36 (YCBCR_P010)` and reports `planeCount=3` on the app-side plane lock.
+- `camApsBufferLockPlanes` returns `0x0` in the current P010 probe, matching the OOS-shaped successful lock
+  boundary instead of proving a mapper/gralloc divergence.
+- The remaining LOS P010 crash is in `libBasicTonePhoto.so` at `BasicTone_OGL::saveOutImg()` during the
+  P010/Pro sequence.
+
+So the shim-retirement candidate is **not** another gralloc/P010 interposer. It is an upstream BasicTone/GL
+output-contract patch: buffer writability, dataspace, stride, and GL image assumptions for the P010/Pro path.
+Only after that replay is green should `libapsfixup` be dropped from the build. This note should be read as the
+producer-layout proof, not as a standing mandate to preserve the shim.
 
 ## Caveats / no-fabrication
 - The `0x114` ↔ "P010" mapping is the QTI **internal** gralloc format code (not the AOSP public `0x36`); both

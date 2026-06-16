@@ -249,10 +249,11 @@ evidence: **there is no smallest single thing, and customVendorTag is the wrong 
 1. **Do NOT** try to "make the app set customVendorTag" — nothing sets it; CHI computes it. Do NOT touch the
    OplusCfgFilePolicy stub for this (§5) and do NOT add a `com.oplus.*` vendor-tag section (already present, §6).
 2. **The actual lever is the OEM HDR/scene metadata** that `ExtensionModule::Get{Logical,Physical}DeviceHDRModeInfo`
-   reads (§3). On LOS this is the same gap as **Gate A** (`47-root-cause-correction-two-gates.md`): AEC
-   `hdr_detected` never computed → HDRmode 0 → selector base fall-through → customVendorTag 0. The fix candidate is
-   the AEC HDR-detect lane (`HDRDetectProcess`/`HDRTriggerFlagDetection`, doc-45 anchors), NOT a customVendorTag
-   patch.
+   reads (§3). Older captures could express this as Gate A (`47-root-cause-correction-two-gates.md`): AEC/HDR
+   scene data missing → HDRmode 0 → selector base fall-through → `customVendorTag 0`. The v1.4 full-baseline
+   refines that: `hdr_detected` is present and normal JPEG save works, so this is now a mode/scene/fusion
+   discriminator to verify per condition, NOT the current preview-overexposure root and NOT a direct no-save
+   proof.
 3. **Verify, don't assume the save-blocker:** before spending effort, run the doc-47 decisive probe
    (`tools/frida/probe_aec_hdrdetect.js`) and a hook on `ExtensionModule::Get*DeviceHDRModeInfo` +
    `GetCustomVendorTagFromCaptureIntent` (ELF `0x108970`) to confirm the LOS input that forces the base-0 path,
@@ -260,6 +261,14 @@ evidence: **there is no smallest single thing, and customVendorTag is the wrong 
 4. **If a no-JPEG save genuinely persists**, pursue the `oemChimetadatas` producer at
    `chxmulticamerabase.cpp:6131 CreateUsecaseRequestObjectInputParam` (LEDGER Iter-6) and the SR-CCM path — that is
    downstream of, and more directly tied to, the missing-image symptom than customVendorTag.
+
+## v1.4 baseline correction (2026-06-16)
+
+`docs/rearch/51-los-v14-oos-ab-preliminary.md` keeps this note in the CHI/fusion lane, but demotes it for the
+current user-visible failure. v1.4 saved stills are normal while the preview remains overexposed, so
+`customVendorTag` is not the EDR/preview root. It remains useful for condition-specific fusion/SR diagnosis,
+especially when paired with `oemchimetadatas-sr-producer-RE.md`, but it should not be re-fused with OCS/SF auth
+or used to justify broad app/API translation stubs.
 
 ## Anchors / files of record
 - OCS SDK jar `/tmp/ocs_sdk.jar`; `JsonParser`/`CameraConfigHelper`/`OperationModeDecision`/`CameraUnitImpl`/`Util`

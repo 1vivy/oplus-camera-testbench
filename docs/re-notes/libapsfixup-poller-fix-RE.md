@@ -173,8 +173,16 @@ torn-read base; and a note-VMA bound that skipped the build-id note), and the fi
 P010/SR interposition without crashing. **But stubbing libapsfixup is NOT what causes `ccm is null` or
 the no-save** — that root is upstream in the **provider-side CHI `OplusOverrideIPECCMData` /
 `getRawSRAlgoMetaData` SR-CCM metadata path** (the `OplusSATOfflineReprocess` IPE node), which is the
-next thing to chase for a saved photo. The fixed lib should still ship (it removes a camera-killing
-SIGSEGV and re-arms the P010 geometry repair), but it is necessary-not-sufficient for the JPEG.
+next thing to chase for that v1.3 saved-photo state. In that state the fixed lib should still ship (it removes
+a camera-killing SIGSEGV and re-arms the P010 geometry repair), but it is necessary-not-sufficient for the JPEG.
+
+## v1.4 baseline supersession (2026-06-16)
+
+This was a v1.3 bring-up defect, not the current v1.4 symptom shape. v1.4 can launch, capture, and save normal
+photos; the remaining user-visible issue is preview-only overexposure. Use this note only as historical proof
+that the old poller crash was real and that `libapsfixup` does not feed SR-CCM. For current patch planning,
+`docs/rearch/51-los-v14-oos-ab-preliminary.md` supersedes the "fixed lib should still ship" sentence above:
+retire the shim after BasicTone/P010 replay is green, and do not keep it for preview EDR.
 
 ### Current device state / reversibility
 - `/odm/lib64/libapsfixup.so` = the **v3 fixed lib** (md5 `69537637…`), camera opens & survives capture.

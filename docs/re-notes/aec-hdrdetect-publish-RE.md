@@ -100,6 +100,13 @@ the static RE confirms compute+export are intact; the unpublished-on-non-HDR-sce
 CamX node's HDR-mode-gated `stats_control` publish (out of this blob), the lever being
 `selectSHDRAutoExposureUsecase` per C5/E3 — **not** re-chased here as a freeze cause.
 
+## v1.4 baseline update (2026-06-16)
+
+The v1.4 `full-baseline` parser reports `hdr_detected publish` present and stable. That keeps this RE useful as
+the mechanism for HDR/scene metadata, but removes it as the active missing piece for normal photo in the current
+port. If a specific mode still falls through to `customVendorTag 0`, probe the `ExtensionModule::Get*HDRModeInfo`
+inputs for that mode; do not assume the AEC detector itself is globally dead.
+
 — pairs with the 1b "hdr_detected publish=present" capture (the contract this static path feeds: the algo
 produces+exports `aecOut+0xfc`; whether it reaches result metadata = the CamX-node publish gate the 1b run
 showed present, the StaticSettings HDR-mode lever being on for that capture).
