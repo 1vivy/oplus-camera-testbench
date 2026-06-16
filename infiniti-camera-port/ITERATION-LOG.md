@@ -103,7 +103,7 @@ Server has no GitHub push creds, so commits were relayed (format-patch → `git 
 
 | date | module | source (branch+SHA / diff ref) | device target | restart action | test result | disposition |
 |------|--------|--------------------------------|---------------|----------------|-------------|-------------|
-| _(none yet — Build 1 not yet flashed)_ | | | | | | |
+| 2026-06-16 | v1.4 launch/capture smoke | flashed `v1.4-cam300-20260616` (`a8373e0` hardware/oplus, `dd3ca87` vendor/oplus/camera); runtime overlay used `cust_build` `oplus-fwk.jar`/boot artifacts to restore typed `ViewRootManager.setBlurParams(OplusBlurParam)`; source patch added in `android_hardware_oplus` | device runtime; `/odm/etc/camera` bind log overlay, `persist.vendor.camera.oplus.enableLogging=true`, APS private logs, AOSP `log.tag.*`, Frida CamX `g_logInfo` + CHI retaa #1/#2 + OEM OLog globals | camera launched, intro dismissed, shutter tapped, `/sdcard/DCIM/Camera/IMG20260616125653.jpg` saved; full log has 8.9M CamX lines and 178k Chi lines; app-side OCS logger attach resolves 5/5 gates but crashes `CameraUnitCallb`, so leave it off during functional capture | OPEN(capture saved; provider logs/unclobbers active; app-side logger unstable) |
 
 > disposition ∈ {PROMOTED→`<commit>` , REVERTED , OPEN(under test)}. No row may stay OPEN across a full build.
 
