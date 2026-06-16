@@ -64,7 +64,7 @@ echo "    LEVER  : for AEC/metadata use frida native hooks (../frida/probe_*.js)
 echo "" >>"$SUM"
 
 echo "(adjunct) gralloc/mapper : FRIDA-ONLY ../frida/trace_p010_planes.js (no setprop lever)." >>"$SUM"
-echo "(adjunct) app/OCS SDK    : FRIDA ../frida/enable_ocs_sdk_log.ts + fwk_trace.js." >>"$SUM"
+echo "(adjunct) app/OCS SDK    : FRIDA ../frida/enable_ocs_sdk_log.js + fwk_trace.js." >>"$SUM"
 echo "(adjunct) SurfaceFlinger/EDR/display : read-only dumpsys (caps in obs_system_framework.txt)." >>"$SUM"
 echo "" >>"$SUM"
 echo "Pull: adb pull /data/local/tmp/obs_camx_chi.txt /data/local/tmp/obs_aps_native.txt /data/local/tmp/obs_system_framework.txt" >>"$SUM"

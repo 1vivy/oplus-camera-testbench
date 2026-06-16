@@ -31,7 +31,7 @@ SHUTTER_XY="635 2261"   # verified shutter_button center (V16.1.0)
 # app-side probes only
 APP_PROBES=""
 for p in $EXTRA_PROBES; do
-  case "$p" in trace_edr_invocation|trace_motionphoto|probe_getoplushwbuffer|trace_preview_delivery|trace_p010_planes|trace_aps_metadata_lifecycle|trace_turbohdr_tag|trace_gralloc_p010_chain|probe_aps_preview_routine|probe_sendinputdata_gate|trace_arcsoft_io) APP_PROBES="$APP_PROBES $p";; esac
+  case "$p" in trace_edr_invocation|trace_motionphoto|probe_getoplushwbuffer|trace_preview_delivery|trace_p010_planes|trace_aps_metadata_lifecycle|trace_turbohdr_tag|trace_gralloc_p010_chain|probe_aps_preview_routine|probe_sendinputdata_gate|trace_arcsoft_io|enable_ocs_sdk_log) APP_PROBES="$APP_PROBES $p";; esac
 done
 [ -z "$APP_PROBES" ] && { echo "condition '$COND' declares no APP-side probes — nothing to do."; exit 0; }
 

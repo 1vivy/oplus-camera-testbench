@@ -8,10 +8,10 @@ partition: /system_ext
 blob_identical_oos_los: false
 characterization: PARTIAL  # (a) INTENT-down OBSERVED (preview.hdr.enable=true → CamX preview.hdr.support 81140168, stable 6/6 runs); consume-up getOplusHardwareBuffer bridge is DARK (SDK Java loggers OFF, G4) — only consume signal seen is a stable CameraMetadataNativeWrapper CNFE at APSClient.transact, so the buffer pass-through is NOT observed end-to-end
 conviction: SUPPORTED             # evidence-for proximate-site; decisive close-pairing A/B (G-MECH/G-FAL) deferred. UNCHANGED — no E-node oracle ran this capture set
-verdict: "OBSERVED stock V16.1.0 (6/6 runs stable): SDK drives HDR INTENT down — com.oplus.camera.preview.hdr.enable=true crosses to CamX vendor-tag preview.hdr.support@81140168 — and the OCS-SDK consume-init (ConsumerImpl.onSessionConfigured → ApsProcessor.initAPS → APSClient.algoInit → transact) throws a STABLE ClassNotFoundException: com.oplus.inner.hardware.camera2.impl.CameraMetadataNativeWrapper. The getOplusHardwareBuffer JNI bridge line is DARK (loggers off), so bridge-fire/fallback for #7 is NOT yet observed; C1 stays a PROXIMATE site, contract characterization PARTIAL pending enable_ocs_sdk_log.ts."
+verdict: "OBSERVED stock V16.1.0 (6/6 runs stable): SDK drives HDR INTENT down — com.oplus.camera.preview.hdr.enable=true crosses to CamX vendor-tag preview.hdr.support@81140168 — and the OCS-SDK consume-init (ConsumerImpl.onSessionConfigured → ApsProcessor.initAPS → APSClient.algoInit → transact) throws a STABLE ClassNotFoundException: com.oplus.inner.hardware.camera2.impl.CameraMetadataNativeWrapper. The getOplusHardwareBuffer JNI bridge line is DARK (loggers off), so bridge-fire/fallback for #7 is NOT yet observed; C1 stays a PROXIMATE site, contract characterization PARTIAL pending enable_ocs_sdk_log.js."
 confidence: medium
 symptoms: [7]
-probes: [enable_ocs_sdk_log.ts, fwk_trace.js, probe_getoplushwbuffer.js]
+probes: [enable_ocs_sdk_log.js, fwk_trace.js, probe_getoplushwbuffer.js]
 gaps: [G4]
 dodge_ref: ""
 dirty_ref: ""
@@ -39,7 +39,7 @@ carry a blob/state-machine root, unlike the byte-identical-blob crash sites else
 > resolves at runtime as `com.oplus.ocs.camera.*` (process `com.oplus.camera` pid 31767; the SDK lib loads
 > as `com.oplus.camera.unit.sdk.jar`). The HDR/mode **INTENT-down** carriers and the SDK **consume-path**
 > stack are both seen; the *getOplusHardwareBuffer JNI bridge line itself is DARK* (SDK Java loggers were
-> not enabled — `enable_ocs_sdk_log.ts` did not run, see (d)/G4), so the bridge fire/fallback is not
+> not enabled — `enable_ocs_sdk_log.js` did not run, see (d)/G4), so the bridge fire/fallback is not
 > observed in this capture set.
 
 **Leaves C1 — driven DOWN (OBSERVED):**
@@ -80,7 +80,7 @@ stamps (`mbLongExposureCaptureEnable`, `mbRepeatingRequestCapture`, `mRequestNum
 `CONTROL_MODE=1`); the per-frame `KEY_IS_LONG_EXPOSURE_CAPTURE_ENABLE` / `KEY_IS_CAPTURE_LAST_FRAME`
 finalize tags; `SurfaceView.setDesiredHdrHeadroom(5.0)` / BT2020_HLG surface set; and the
 `getModeName()`/`getSurfaceUseCase()`/`getCaptureFormat()` mode identity — none print without the SDK
-loggers (G4) or a fwk reflection trace; treat as PARTIAL until `enable_ocs_sdk_log.ts` + `fwk_trace.js` run.
+loggers (G4) or a fwk reflection trace; treat as PARTIAL until `enable_ocs_sdk_log.js` + `fwk_trace.js` run.
 
 > **G-MECH note:** the runtime `ClassNotFoundException: …CameraMetadataNativeWrapper` at
 > `APSClient.transact (Native Method)` pairs the OCS-SDK consume-init failure with the RE finding that our
@@ -119,7 +119,7 @@ take the fallback / leak the wrapper (#7)?
 
 ## (d) Runtime probe(s)
 
-- `tools/observability/frida/enable_ocs_sdk_log.ts` — turns on OCS SDK Java loggers (default OFF) so the
+- `tools/frida/enable_ocs_sdk_log.js` — turns on OCS SDK Java loggers (default OFF) so the
   `ConsumerImpl.onPreviewImageArrived → Util.getHardwareBuffer → ApsProcessor.addPreview →
   ApsResult$ImageBuffer.<init>` chain and the "use getHardwareBuffer" fallback line become visible.
 - `tools/observability/frida/fwk_trace.js` — framework reflection trace for the INTENT carriers driven

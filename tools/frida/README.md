@@ -103,7 +103,7 @@ Resilience ratings: **RESILIENT** = resolves by exported symbol or _anchor expor
 | `unclobber_camx_logs.js` | Log-enabler | In-memory twin of `patch_chi_logclobber.py`. Writes `retaa` over the 2nd instruction of CHI log-mask clobbers in `libextensionlayer.so` (#1/#3) and `com.qti.chi.override.so` (#2) so `camxoverridesettings.txt` CHI verbose masks survive `configure_streams`. Resolves all three targets by exported symbol. | RESILIENT |
 | `enable_ascii_logging.js` | Log-enabler | Live StaticSettings POD writes: `enableAsciiLogging=1` + log-mask raise (INFO/CoreCfg/EntryExit; VERBOSE optional via `WANT_VERBOSE`). Offset-pinned to `libcamxsettingsmanager.so` (V16.1.0). Does NOT touch `g_logInfo` (use `enable_camx_logging.js` for that). | FRAGILE |
 | `enable_olog_oemlayer.js` | Log-enabler | Flips `camera.oemlayer.v2.so` OLog level globals (`_ZN4OLog15g_enableLogInfoE` etc.) to 1; re-asserts every 1 s. Resolves by exported symbol. | RESILIENT |
-| `enable_ocs_sdk_log.ts` | Log-enabler | TypeScript; requires `frida-compile`. Forces the OCS camera SDK's Java loggers to MAX verbosity in `com.oplus.camera` (library load, vendor-tag init, APS HDR decision `Util.isHdrOn`). Must be compiled to `.compiled.js` before use. | RESILIENT (Java hooks) |
+| `enable_ocs_sdk_log.js` | Log-enabler | APP-side Frida probe. Forces the OCS camera SDK's Java loggers to MAX verbosity in `com.oplus.camera` (library load, vendor-tag init, APS HDR decision `Util.isHdrOn`). Routed by `app_probe_capture.sh`; no compile step required. | RESILIENT (Java hooks) |
 | `read_gloginfo.js` | Log-enabler | Reads and prints the live `g_logInfo` struct (all mask slots + `enableAsciiLogging`) from `libcamxcommonutils.so` +0x68010 + `g_logInfoUpdated` / `g_logInfoStored`. Diagnostic companion to `write_gloginfo.js`. | FRAGILE |
 | `write_gloginfo.js` | Log-enabler | Forces `g_logInfo` masks to `0xFFFFFFFF` and `enableAsciiLogging=1` unconditionally; sets `g_logInfoUpdated=1`. One-shot fix-verify helper. Build-pinned. | FRAGILE |
 
@@ -123,14 +123,14 @@ Resilience ratings: **RESILIENT** = resolves by exported symbol or _anchor expor
 
 | Probe | Subsystem | What it observes / flips | Resilience |
 |-------|-----------|--------------------------|------------|
-| `enable_ocs_sdk_log.ts` | OCS SDK | (See Log-enablers above.) | RESILIENT |
+| `enable_ocs_sdk_log.js` | OCS SDK | (See Log-enablers above.) | RESILIENT |
 
 ---
 
 ## Subdirectories
 
-None. All scripts are flat in `tools/frida/`. Compiled output for TypeScript sources
-(e.g. `enable_ocs_sdk_log.compiled.js`) lands here after `frida-compile`.
+None. All harness-routed probes are flat `.js` scripts in `tools/frida/`. Legacy TypeScript experiments may
+still need `frida-compile`, but app-probe basenames should resolve directly to committed `.js` files.
 
 ---
 
@@ -152,7 +152,7 @@ None. All scripts are flat in `tools/frida/`. Compiled output for TypeScript sou
   - **APP-side** (com.oplus.camera): `trace_edr_invocation`, `trace_motionphoto`,
     `probe_getoplushwbuffer`, `trace_preview_delivery`, `trace_p010_planes`,
     `trace_aps_metadata_lifecycle`, `trace_turbohdr_tag`, `trace_gralloc_p010_chain`,
-    `probe_aps_preview_routine`, `probe_sendinputdata_gate`
+    `probe_aps_preview_routine`, `probe_sendinputdata_gate`, `enable_ocs_sdk_log`
 - `enable_camx_logging.js` and `unclobber_camx_logs.js` are always co-attached by `run_condition.sh`
   regardless of `EXTRA_PROBES`; do not duplicate them in condition `.env` files.
 - Cross-reference: `../observability/tables/lever-index.md` for per-subsystem WORKS/CLOBBERED/DARK
@@ -164,7 +164,7 @@ None. All scripts are flat in `tools/frida/`. Compiled output for TypeScript sou
 
 - Rooted device (KernelSU), `frida-server` running on device, `frida` CLI on host `PATH`.
 - `frida >= 17` (instance-API mandatory; static `Module.getExportByName` absent).
-- `frida-compile` (npm) for TypeScript sources (`enable_ocs_sdk_log.ts`).
+- `frida-compile` (npm) only for legacy TypeScript experiments; not required for harness-routed `.js` probes.
 - `adb shell setenforce 0` required for provider/cameraserver attach on this build.
 - BuildID cache directory `/data/local/tmp/probe-symbols/` created on first `_anchor.js` resolve.
 
