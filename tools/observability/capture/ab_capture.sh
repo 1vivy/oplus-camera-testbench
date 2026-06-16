@@ -57,6 +57,11 @@ fi
 # 4) post-state (app still alive here — driver ran with DRIVE_NO_CLOSE, legacy not yet force-stopped)
 dumpsys media.camera > "$DST/dumpsys_camera_post.txt" 2>&1
 dumpsys SurfaceFlinger | grep -iEA4 'supportedhdrtypes|hdrcapab|desiredhdr|wide.?color|com\.oplus\.camera|dataspace|colormode' > "$DST/sf_post.txt" 2>&1
+LIVE_FG=$(dumpsys window 2>/dev/null | grep -m1 mCurrentFocus)
+screencap -p "$DST/scene_live.png" 2>/dev/null
+LIVE_SZ=$(wc -c < "$DST/scene_live.png" 2>/dev/null || echo 0)
+LIVE_OK=1; case "$LIVE_FG" in *com.oplus.camera*) : ;; *) LIVE_OK=0 ;; esac; [ "$LIVE_SZ" -lt 300000 ] && LIVE_OK=0
+printf 'scene_ok=%s foreground=%s scene_bytes=%s\n' "$LIVE_OK" "$LIVE_FG" "$LIVE_SZ" > "$DST/scene_live_audit.txt"
 # preview/GL thread state (the freeze #1 signal): /data/anr/ is EMPTY on A16 — SIGQUIT traces don't land
 # there. debuggerd -b is the reliable path (all-thread native unwind, non-fatal). Keep kill -3 best-effort.
 APP_PID=$(pgrep -f "$PKG" | head -1)

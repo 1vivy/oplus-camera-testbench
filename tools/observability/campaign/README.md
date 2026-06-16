@@ -29,7 +29,7 @@ camera sessions on the same unit.
 | `app_probe_capture.sh` | **APP-side frida capture.** Navigates to the mode with shutter suppressed (`DRIVE_NAVONLY=1`), attaches frida to the fresh `com.oplus.camera` PID, then fires the shutter so probes see the full preview→capture invocation. Handles the APP-side `EXTRA_PROBES` subset (`trace_edr_invocation`, `trace_motionphoto`, `probe_getoplushwbuffer`, `trace_preview_delivery`, `trace_p010_planes`, `trace_aps_metadata_lifecycle`, `trace_turbohdr_tag`, `trace_gralloc_p010_chain`, `probe_aps_preview_routine`, `probe_sendinputdata_gate`). |
 | `validate_modes.sh` | **Phase-1a UI reliability gate.** Runs each UI mode K times from a cold start; asserts the `drive_cycle.sh` action-log markers are present and deterministic (reach rate = K/K to graduate). Flaky modes are reported rather than silently captured. Navigation-reliability analogue of `parse_condition.py`'s signal-determinism gate, applied upstream. |
 | `parse_condition.py` | **Per-condition verdict writer.** Delegates to `capture/parse_ab.py` detectors (no logic duplication); computes the stock signal on every `run<k>/ab`; flags each row `stable` (identical across all runs — the only state that backs a CONFIRMED tree verdict) or `flaky` (varies under identical stimulus = non-deterministic; must not be promoted). Writes `<cond>/verdict.json`. |
-| `record_session.sh` | **Host gesture recorder.** Captures `getevent -t` touch stream + `screenrecord` for a named session; output stored in `sessions/<name>.events` + `.mp4`. Replayed byte-identically by `drive_cycle.sh replay <name>` across all repeats and later LOS runs. Satisfies the FACT contract G-COND/G-REP gates. |
+| `sessions/*.actions` | **Replay action scripts.** Small declarative session files consumed by `drive_cycle.sh replay <name>`. Raw `getevent`/`sendevent` session replay was retired because it was device-input fragile and obscured stimulus intent. |
 | `diff_oos_los.py` | **OOS↔LOS B-side diff harness.** Compares matched OOS and LOS condition directories: per-symptom `verdict.json` rows + per-probe checkpoint records. Emits a divergence table (OOS value | LOS value | MATCH/DIVERGE). The first diverging checkpoint along a symptom's node path is where LOS went wrong. `--self` mode sanity-checks mechanics against a single dir. |
 
 ---
@@ -39,7 +39,7 @@ camera sessions on the same unit.
 | Directory | Contents |
 |-----------|----------|
 | `conditions/` | Named `.env` files — one per experimental condition. Each file declares the knobs for a single campaign run (see schema below). Currently 22 conditions covering photo/video/burst/night/8K/EDR/P010/gralloc/metadata/TIER-1/TIER-2 probes. |
-| `sessions/` | Recorded gesture sessions (`.actions` + `.mp4`) produced by `record_session.sh`. Referenced by `SESSION=` in `MODE=replay` conditions. Currently contains `rgbfan-photo-aelock.actions` (the canonical high-DR de-confound session). |
+| `sessions/` | Declarative replay sessions (`.actions`). Referenced by `SESSION=` in `MODE=replay` conditions. Currently contains `rgbfan-photo-aelock.actions` (the canonical high-DR de-confound session). |
 
 ---
 
@@ -101,8 +101,7 @@ reminder, and `hook_configure_streams` to `attach_provider`. `RUN_R3=0` (not rel
   orphan artifact directories or condition files without a corresponding run.
 - `enable_camx_logging` and `unclobber_camx_logs` are permanently wired in `run_condition.sh` and
   must not appear in `EXTRA_PROBES` (they would double-attach).
-- `MODE=replay` requires a matching `SESSION=<name>` and a recorded `.actions` file in `sessions/`.
-  Run `record_session.sh` first.
+- `MODE=replay` requires a matching `SESSION=<name>` and an `.actions` file in `sessions/`.
 - Scripts follow `../../AGENTS.md` conventions: `#!/usr/bin/env bash`, READ-ONLY with respect to
   device partitions (overlay + setprop; never write persist/partition), output to
   `/data/local/tmp/obs-*`, artifacts pulled to `reference/campaign/<cond>/`.

@@ -302,12 +302,9 @@ assert_scope() {
   act "assert_scope OK (camera foreground, mode=$cm)"; return 0
 }
 
-# replay a recorded session: prefer a faithful raw getevent stream (<name>.events via replay_events.sh),
-# else a verb action list (<name>.actions).
 run_session() {
-  ev="$SESS_DIR/$1.events"; ac="$SESS_DIR/$1.actions"
-  if [ -f "$ev" ]; then act "replay-raw $1 ($ev)"; sh "$HERE/replay_events.sh" "$ev"; return $?; fi
-  [ -f "$ac" ] || { act "replay: no session $1 (.events/.actions)"; echo "no session: $1"; return 2; }
+  ac="$SESS_DIR/$1.actions"
+  [ -f "$ac" ] || { act "replay: no session $1 (.actions)"; echo "no session: $1"; return 2; }
   act "replay session=$1 ($ac)"
   while IFS= read -r ln; do
     set -- $ln; v="$1"; shift 2>/dev/null

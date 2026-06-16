@@ -12,6 +12,14 @@ set -u
 COND="${1:?usage: app_probe_capture.sh <condition>}"
 HERE="$(cd "$(dirname "$0")" && pwd)"; OBS="$(cd "$HERE/.." && pwd)"; REPO="$(cd "$OBS/../.." && pwd)"
 ENVF="$HERE/conditions/${COND}.env"; [ -f "$ENVF" ] || { echo "no condition: $ENVF"; exit 1; }
+ADB_UID=$(adb shell id -u 2>/dev/null | tr -d '\r')
+adb_as_root() {
+  if [ "$ADB_UID" = 0 ]; then
+    adb shell "$1"
+  else
+    adb shell su -c "$1"
+  fi
+}
 MODE=photo; SESSION=""; AE_LOCK=0; REPEAT_N=1; NOTE=""; EXTRA_PROBES=""
 # shellcheck disable=SC1090
 . "$ENVF"
@@ -29,16 +37,16 @@ done
 
 adb shell rm -rf /data/local/tmp/obs-capture >/dev/null 2>&1
 adb push "$OBS/capture" /data/local/tmp/obs-capture >/dev/null 2>&1
-adb shell su -c "chmod -R 755 /data/local/tmp/obs-capture" >/dev/null 2>&1
-adb shell 'su -c "pidof frida-server >/dev/null || (nohup frida-server >/dev/null 2>&1 &)"' 2>/dev/null; sleep 1
+adb_as_root "chmod -R 755 /data/local/tmp/obs-capture" >/dev/null 2>&1
+adb_as_root "pidof frida-server >/dev/null || (nohup frida-server >/dev/null 2>&1 &)" 2>/dev/null; sleep 1
 
 for probe in $APP_PROBES; do
   s="$REPO/tools/frida/$probe.js"; [ -f "$s" ] || { echo "  missing $s"; continue; }
   echo "== app probe '$probe' on mode=$MODE =="
   adb shell logcat -c 2>/dev/null
   # 1) navigate to the mode, leave app OPEN, shutter SUPPRESSED
-  adb shell "su -c 'DRIVE_NAVONLY=1 DRIVE_NO_CLOSE=1 AE_LOCK=$AE_LOCK sh $DEV_UI/drive_cycle.sh $MODE'" >/dev/null 2>&1
-  APID=$(adb shell su -c 'pidof com.oplus.camera' 2>/dev/null | tr -d '\r' | awk '{print $1}')
+  adb_as_root "DRIVE_NAVONLY=1 DRIVE_NO_CLOSE=1 AE_LOCK=$AE_LOCK sh $DEV_UI/drive_cycle.sh $MODE" >/dev/null 2>&1
+  APID=$(adb_as_root 'pidof com.oplus.camera' 2>/dev/null | tr -d '\r' | awk '{print $1}')
   [ -z "$APID" ] && { echo "  app not running after nav — skip $probe"; continue; }
   # 2) attach the probe to the live app, let hooks install
   frida -U -p "$APID" -l "$s" >"$DST/${probe}.log" 2>&1 &

@@ -14,6 +14,14 @@ OBS="$(cd "$HERE/.." && pwd)"
 REPO="$(cd "$OBS/../.." && pwd)"
 ENVF="$HERE/conditions/${COND}.env"
 [ -f "$ENVF" ] || { echo "no condition file: $ENVF"; exit 1; }
+ADB_UID=$(adb shell id -u 2>/dev/null | tr -d '\r')
+adb_as_root() {
+  if [ "$ADB_UID" = 0 ]; then
+    adb shell "$1"
+  else
+    adb shell su -c "$1"
+  fi
+}
 
 # condition knobs (with defaults)
 MODE=photo; SESSION=""; AE_LOCK=0; SELINUX=""; REPEAT_N=3; NOTE=""; EXTRA_PROBES=""
@@ -25,7 +33,7 @@ echo "== condition '$COND': mode=$MODE session=$SESSION ae_lock=$AE_LOCK selinux
 
 # build identity + (optional) SELinux set
 adb shell 'getprop ro.build.version.oplusrom; getprop ro.lineage.build.version; getenforce' | tr '\n' ' '; echo
-[ -n "$SELINUX" ] && adb shell su -c "setenforce $([ "$SELINUX" = permissive ] && echo 0 || echo 1)" 2>/dev/null
+[ -n "$SELINUX" ] && adb_as_root "setenforce $([ "$SELINUX" = permissive ] && echo 0 || echo 1)" 2>/dev/null
 
 # push kits CLEAN (rm-first defeats the adb push-into-existing-dir nesting gotcha) + the replay sessions
 adb shell rm -rf /data/local/tmp/obs-enable /data/local/tmp/obs-capture /data/local/tmp/obs-sessions
@@ -34,7 +42,7 @@ adb push "$OBS/capture"          /data/local/tmp/obs-capture  >/dev/null
 adb push "$HERE/sessions"        /data/local/tmp/obs-sessions >/dev/null
 
 # enable verbosity ONCE (restarts provider/cameraserver; reversible)
-adb shell su -c 'sh /data/local/tmp/obs-enable/00_enable_all.sh' >/dev/null 2>&1 || true
+adb_as_root 'sh /data/local/tmp/obs-enable/00_enable_all.sh' >/dev/null 2>&1 || true
 sleep 2
 
 # --- FRIDA CO-ATTACH (provider-side) ---------------------------------------------------------------
@@ -45,8 +53,8 @@ sleep 2
 # app pid per run -> run app_probe_capture.sh <condition> separately (it pairs DRIVE_NAVONLY + attach).
 FDIR="$DST/frida"; mkdir -p "$FDIR"; FPIDS=""
 have_frida=0; command -v frida >/dev/null 2>&1 && have_frida=1
-adb shell 'su -c "pidof frida-server >/dev/null || (nohup frida-server >/dev/null 2>&1 &)"' 2>/dev/null; sleep 1
-prov_pid() { adb shell su -c 'pidof vendor.qti.camera.provider-service_64' 2>/dev/null | tr -d '\r'; }
+adb_as_root 'pidof frida-server >/dev/null || (nohup frida-server >/dev/null 2>&1 &)' 2>/dev/null; sleep 1
+prov_pid() { adb shell 'pgrep -f "^/vendor/bin/hw/vendor\\.qti\\.camera\\.provider-service_64$" | head -1' 2>/dev/null | tr -d '\r'; }
 attach_provider() {  # $1 = frida script basename (no .js)
   s="$REPO/tools/frida/$1.js"; [ -f "$s" ] || { echo "   frida: missing $s"; return; }
   P=$(prov_pid); [ -z "$P" ] && { echo "   frida: provider not running ($1)"; return; }
@@ -55,7 +63,7 @@ attach_provider() {  # $1 = frida script basename (no .js)
 }
 attach_server() {  # $1 = frida script basename — server-side CameraServiceExtImpl probes (cameraserver daemon)
   s="$REPO/tools/frida/$1.js"; [ -f "$s" ] || { echo "   frida: missing $s"; return; }
-  CS=$(adb shell su -c 'pidof cameraserver' 2>/dev/null | tr -d '\r' | awk '{print $1}')
+  CS=$(adb shell 'pgrep -x cameraserver | head -1' 2>/dev/null | tr -d '\r')
   [ -z "$CS" ] && { echo "   frida: cameraserver not running ($1)"; return; }
   frida -U -p "$CS" -l "$s" >"$FDIR/$1.log" 2>&1 &
   FPIDS="$FPIDS $!"; echo "   frida <- $1 (cameraserver pid $CS)"
@@ -87,9 +95,11 @@ kill_frida() { for fp in $FPIDS; do kill "$fp" 2>/dev/null; done; }
 trap kill_frida EXIT
 
 pull_dir() {  # $1=device obs_ab dir  $2=dest
-  adb shell su -c "cp -r $1 /data/local/tmp/_pull && chmod -R 777 /data/local/tmp/_pull" 2>/dev/null
-  adb pull /data/local/tmp/_pull "$2" >/dev/null 2>&1
-  adb shell su -c 'rm -rf /data/local/tmp/_pull' 2>/dev/null
+  adb_as_root 'rm -rf /data/local/tmp/_pull' 2>/dev/null
+  adb_as_root "cp -r $1 /data/local/tmp/_pull && chmod -R 777 /data/local/tmp/_pull" 2>/dev/null
+  rm -rf "$2"; mkdir -p "$2"
+  adb pull /data/local/tmp/_pull/. "$2"/ >/dev/null 2>&1
+  adb_as_root 'rm -rf /data/local/tmp/_pull' 2>/dev/null
 }
 
 # REPEAT_N identical replay-driven ab_capture cycles (determinism: same stimulus each run)
@@ -97,9 +107,16 @@ k=1
 while [ "$k" -le "$REPEAT_N" ]; do
   echo "  -- run $k/$REPEAT_N --"
   RUN="$DST/run${k}"; mkdir -p "$RUN"
-  adb shell su -c "AE_LOCK=$AE_LOCK sh /data/local/tmp/obs-capture/ab_capture.sh $MODE $SESSION" >/dev/null 2>&1
-  DEVDIR=$(adb shell su -c 'ls -dt /data/local/tmp/obs_ab_* 2>/dev/null | head -1' | tr -d '\r')
-  [ -n "$DEVDIR" ] && pull_dir "$DEVDIR" "$RUN/ab" && adb shell su -c "rm -rf $DEVDIR" 2>/dev/null
+  adb_as_root 'rm -rf /data/local/tmp/obs_ab_* /data/local/tmp/_pull' 2>/dev/null
+  adb_as_root "AE_LOCK=$AE_LOCK sh /data/local/tmp/obs-capture/ab_capture.sh $MODE $SESSION" >/dev/null 2>&1
+  DEVDIR=$(adb_as_root 'ls -dt /data/local/tmp/obs_ab_* 2>/dev/null | head -1' | tr -d '\r')
+  [ -n "$DEVDIR" ] && pull_dir "$DEVDIR" "$RUN/ab" && adb_as_root "rm -rf $DEVDIR" 2>/dev/null
+  if [ -s "$RUN/ab/scene_live.png" ]; then
+    cp -f "$RUN/ab/scene_live.png" "$RUN/scene.png"
+    cp -f "$RUN/ab/scene_live_audit.txt" "$RUN/scene_audit.txt" 2>/dev/null || printf 'scene_ok=1 foreground=in-cycle scene_bytes=%s\n' "$(stat -c %s "$RUN/scene.png" 2>/dev/null || echo 0)" > "$RUN/scene_audit.txt"
+    k=$((k+1))
+    continue
+  fi
   # reference screencap + SCENE AUDIT. A stuck popup / wrong app makes the cold launch come up BEHIND it, so
   # the screenshot is the wrong screen (the ~82KB scene.png poison — e.g. the "Allow Scan to take pictures"
   # permission dialog from the doc-digitizer). Record the foreground app + screenshot size and flag SUSPECT
@@ -133,4 +150,8 @@ cat > "$DST/metadata.json" <<EOF
 EOF
 
 echo "== condition '$COND' captured -> $DST (run1..run$REPEAT_N) =="
+if [ "${SKIP_PARSE:-0}" = 1 ]; then
+  echo "   parse skipped (SKIP_PARSE=1)"
+  exit 0
+fi
 "$HERE/parse_condition.py" "$DST" 2>/dev/null || echo "   next: tools/observability/campaign/parse_condition.py $DST"
