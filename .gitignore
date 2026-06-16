@@ -9,6 +9,7 @@ __pycache__/
 # --- upstream Android reference clones (~31G; the README repo table is the manifest) ---
 /dodge-camera-port/repos/
 /infiniti-camera-port/repos/
+/refs/
 
 # --- vendored binaries (pushed to device, not source; obtain per the relevant README) ---
 **/frida-inject
@@ -29,6 +30,14 @@ tools/persistence/oplus_cam_probes/injector.log
 !/reference/baseline/*/verdict.json
 !/reference/baseline/*/PREFLIGHT.md
 !/reference/baseline/*/validate_modes_report.txt
+
+# --- camera-bringup: keep only the LEDGER + tool scripts; ignore captures/overlays/binaries/logs/state ---
+/camera-bringup/logs/
+/camera-bringup/overlays/
+/camera-bringup/.omc/
+/camera-bringup/records/*
+!/camera-bringup/records/LEDGER.md
+/camera-bringup/tools/__pycache__/
 
 # --- stray capture artifacts anywhere ---
 *.strace

@@ -7,8 +7,8 @@ plane: control
 partition: /system
 blob_identical_oos_los: true
 characterization: CHARACTERIZED  # (a) carriers observed end-to-end on OOS: configure_streams contract seen at runtime — photo op_mode 0x8001/3-stream (RAW10 3280x2464) + 8K op_mode 0x8001/9-stream (logicalCameraId 4) AND op_mode 0x80a9/5-stream EIS (7680x4320 YUV+IMPL_DEFINED) via frida hook, 3/3 STABLE; G1 stock CameraServiceExtImpl.cpp VERBOSE + G5 binder dropped 2(photo)/12(8K) stable; libcsextimpl exports RE-mapped
-conviction: SUPPORTED             # G5 evidence-for (lib absent LOS, 0 ext call sites); decisive r4 OOS↔LOS A/B is LOS-deferred
-verdict: "G5 is REAL: libcsextimpl absent on LOS (root = facilitation E2, frameworks/av has 0 ext call sites + lib dropped d654641); not a libcameraservice blob edit. Depth-2 beforeConfigureStreamsLocked is the proximate-upstream candidate for #8 (8K -38); Depth-1 onTransact governs identity/zoom/auth. conviction reaches CONVICTED only after the r4 OOS↔LOS A/B (LOS-deferred); SUPPORTED for now."
+conviction: SUPPORTED             # SUPERSEDED 2026-06-16 — see body CORRECTION (libcsextimpl shipped + a1cb339/dc44f04 landed)
+verdict: "SUPERSEDED 2026-06-16: the facilitation IS now landed — libcsextimpl.so ships via vendor/oplus/camera (system_ext/lib64) and frameworks/av carries the ext receiver (a1cb339) + the package-name identity stamp (dc44f04/C7). The earlier 'G5 is REAL: libcsextimpl absent on LOS / 0 ext call sites / dropped d654641' no longer holds. Depth-1 onTransact governs identity/zoom/auth; Depth-2 beforeConfigureStreamsLocked remains the 8K -38 candidate. Live A/B (does the package-name stamp flip the HAL to SAT-Fusion) is the open device test."
 confidence: medium
 symptoms: [8, 4, 1, 3]
 probes: [r4-oem-transact, hook_configure_streams.js, G1, G5]
@@ -25,10 +25,17 @@ updated: 2026-06-14
 
 # C3 — cameraserver / libcameraservice + OEM CameraServiceExtImpl
 
+> **CORRECTION (2026-06-16):** the "environmentally absent" framing below is SUPERSEDED. `libcsextimpl.so`
+> IS shipped in cam-final at `vendor/oplus/camera/camera/proprietary/system_ext/lib64/libcsextimpl.so`, and
+> `frameworks/av` now carries the OEM ext receiver (commit `a1cb339`, dodge av/0001) PLUS the OOS-faithful
+> package-name identity stamp (`com.oplus.packageName`=`com.oplus.camera`, commit `dc44f04` / C7). The prior
+> `d654641` drop + "0 ext call sites" no longer hold; the identity gate is the package NAME, not a byte tag.
+
 The OEM cameraserver layer. On OOS the `media.camera` binder is OnePlus-modified and answers a private
 OEM protocol via `libcsextimpl.so` (`android::CameraServiceExtImpl`) at **two depths**. On LOS our
-`frameworks/av` is stock AOSP (0 ext call sites) and `libcsextimpl` was dropped (`d654641`) — so this
-node is a `/system` propagation contract that is **environmentally absent**, not a misbehaving blob.
+`frameworks/av` now carries the ext receiver (`a1cb339`) + the package-name identity stamp (`dc44f04`), and
+`libcsextimpl.so` is shipped via `vendor/oplus/camera` (system_ext) — so this node is **facilitated**, no
+longer "environmentally absent".
 
 > **Axiom binding.** `libcameraservice.so` is byte-identical-OOS↔LOS-class (pure AOSP both sides; md5≠stock
 > only because LOS rebuilds it). The root is NOT a libcameraservice edit — it is the **missing facilitation**:

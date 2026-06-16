@@ -122,7 +122,24 @@ launch() {
 }
 # DRIVE_NAVONLY=1 (set by app_probe_capture.sh) navigates to the mode but SKIPS the shutter, so a frida
 # app-side probe can attach to the freshly-launched app BEFORE the capture trigger. Pair with DRIVE_NO_CLOSE=1.
-shutter() { [ "$DRIVE_NAVONLY" = 1 ] && { act "shutter skipped (NAVONLY)"; return 0; }; tap_id "$RID_SHUTTER" || { input keyevent KEYCODE_CAMERA; act "shutter via KEYCODE_CAMERA"; }; }
+# RAW full-finger shutter tap (incl. ABS_MT_TOUCH_MAJOR + BTN_TOOL_FINGER). The LOS-ported OnePlus
+# shutter IGNORES `input tap` and size-0 sendevent — it fires a still ONLY on a real finger contact
+# (verified 2026-06-15: input tap => no still=1; full contact => still=1). OOS accepts input tap, so
+# this is the LOS-bringup enabler that lets the A/B campaign drive real captures on LOS.
+raw_shutter() {
+  dump || return 1
+  line=$(tr '>' '\n' < /data/local/tmp/obs_ui.xml 2>/dev/null | grep -F "resource-id=\"$RID_SHUTTER\"" | head -1)
+  [ -z "$line" ] && { act "raw_shutter: $RID_SHUTTER NOT FOUND"; return 1; }
+  b=$(echo "$line" | grep -oE 'bounds="\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]"' | head -1 | grep -oE '[0-9]+')
+  set -- $b; [ $# -lt 4 ] && return 1
+  cx=$(( (($1 + $3) / 2) * 16 )); cy=$(( (($2 + $4) / 2) * 16 )); D="$TOUCH_DEV"
+  se() { sendevent "$D" "$1" "$2" "$3"; }
+  se 3 47 0; se 3 57 88; se 3 55 0; se 3 48 120; se 3 49 120; se 3 53 "$cx"; se 3 54 "$cy"; se 1 330 1; se 1 325 1; se 0 0 0
+  sleep 0.1
+  se 3 47 0; se 3 57 4294967295; se 1 330 0; se 1 325 0; se 0 0 0
+  act "raw_shutter -> center*16 ($cx,$cy) full-finger contact"; return 0
+}
+shutter() { [ "$DRIVE_NAVONLY" = 1 ] && { act "shutter skipped (NAVONLY)"; return 0; }; raw_shutter || tap_id "$RID_SHUTTER" || { input keyevent KEYCODE_CAMERA; act "shutter via KEYCODE_CAMERA"; }; }
 # long-press the preview center to lock AE/AF (OplusCamera gesture).
 longpress() { input swipe "$1" "$2" "$1" "$2" "${3:-900}"; act "longpress ($1,$2) ${3:-900}ms"; }
 aelock()    { longpress "$PREVIEW_CX" "$PREVIEW_CY" 900; sleep 1; act "AE/AF lock (long-press preview)"; }
