@@ -1,0 +1,17 @@
+# Build-server check (vivy@10.9.20.67:/srv/android/worktrees/lineage-infiniti), 2026-06-17
+# Question: is vendor/qcom/opensource/display (CLO gralloc/libqdmetadata) built+shipped, or present-but-unused?
+# Answer: PRESENT BUT NOT BUILT / NOT SHIPPED — the OOS proprietary blobs ship (byte-identical).
+
+1. soong intermediates for vendor/qcom/opensource/display: NONE (not built).
+
+2. installed gralloc/metadata lib BuildIds — OUT == proprietary BLOB == OOS .300 dump (all identical):
+   libqdMetaData.so  : ff69aecd89a0236130e55df9084fe7fc   (OUT == BLOB == OOS300)
+   libgralloc.qti.so : 98b2b3b640d0327e5c4f6cdd45fa52b5   (OUT == BLOB == OOS300)
+   libgralloccore.so : 55b0696125636e6414f08615d34a095c   (OUT == BLOB == OOS300)
+   blob path: vendor/oneplus/sm8850-common/proprietary/vendor/lib64/
+
+# CONCLUSION: the CLO open-source display HAL in the tree is dead code; the LOS device runs the OOS .300
+# proprietary gralloc/libqdMetaData. Closes the "CLO display impl divergence" thread. Combined with the
+# 3-lane finding (getPlaneLayout dormant on golden; descriptor=0x0/getMetadata=-2 symmetric), the entire
+# gralloc/mapper/metadata layer is cleared. Root re-located to the missing Oplus camera vendor tag
+# com.oplus.aps.platform.output.alignment (libAlgoProcess +0x5c76f4) — see p010-dmabuf-environment-RE.md CORRECTION.

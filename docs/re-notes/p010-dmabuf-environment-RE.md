@@ -7,14 +7,36 @@
 The LOS Pro/SAT-fusion P010 photo-save crash is **NOT** caused by anything we can toggle or by any binary
 that differs. Across **kernel (OOS prebuilt), every vendor blob in the allocate→metadata→read chain, and
 the gralloc props**, OOS and LOS are **byte-identical / behaviorally identical**. The crashing 1280×960
-P010_VENUS buffer is allocated to the **identical size** (`0x384000`) on both. The surviving root is that
-the **QTI extended gralloc plane-layout metadata (`PLANE_LAYOUTS` / `libqdMetaData` private-handle fields)
-is never populated/exposed to APS on LOS** — so APS's `ApsBufferPlanes` scanline/chroma are left garbage and
-the consumers (BasicTone, ArcSoft, the APS rotate) walk off the buffer. Since no binary/kernel/prop differs,
-the divergence lives in the **only from-source layer**: the AOSP/Lineage framework + the Gralloc5/AIMapper
-stable-C interface glue + linker-namespace/VNDK visibility + sepolicy that import the buffer and are supposed
-to drive that metadata. **`libapsfixup` is fundamentally a consumer-side replacement for that missing
-metadata** (see the Oracle section).
+P010_VENUS buffer is allocated to the **identical size** (`0x384000`) on both. **The geometry APS uses does
+NOT come from gralloc `PLANE_LAYOUTS`** (that GET path is dormant on the working golden too — see CORRECTION).
+It comes from the **Oplus camera vendor tag `com.oplus.aps.platform.output.alignment`**, read by
+`libAlgoProcess +0x5c76f4`. On LOS the ported camera HAL **never emits that tag** → APS falls to a `0/0`
+alignment default → `align_up(luma, 0)` = 4 GB-garbage chroma → BasicTone/ArcSoft walk off. **`libapsfixup`
+re-derives, at the consumers, exactly the scanline + chroma fields that vendor tag would have supplied**
+(see the Oracle section). [Leading root is INFERRED — see CORRECTION + the conviction probe.]
+
+## ⚠️ CORRECTION (3-lane deep-dive + build-log, 2026-06-17) — supersedes the gralloc-metadata root below
+The "QTI `PLANE_LAYOUTS` metadata not populated/exposed to APS on LOS / from-source AIMapper-namespace-sepolicy
+seam" thesis (stated in the original TL;DR and the "surviving root" section) is **REFUTED**:
+- **`getPlaneLayout` (libAlgoProcess +0x12127c) fires 0× on the WORKING OOS golden too** (gated off by the
+  `useMetadata` singleton on both builds). `camApsBufferLockPlanes → descriptor=0x0` (854 hits LOS) and
+  `getMetadata res:-2` are **byte-for-byte SYMMETRIC** golden↔LOS — red herrings, not the divergence.
+- **No env gap:** zero LOS-only sepolicy denial / missing-dlopen / namespace block on the gralloc-metadata
+  path (every hook fires identically both sides). The gralloc SET and GET stacks are byte-identical blobs.
+- **Build-log:** `vendor/qcom/opensource/display` (CLO gralloc/libqdmetadata) is **present but NOT built/shipped**
+  — installed `libqdMetaData`/`libgralloc.qti`/`libgralloccore` are BuildId-identical to the OOS .300 blob
+  (`ff69aecd…`/`98b2b3b6…`/`55b0696…`). The CLO-display divergence thread is closed.
+- **Guard page = incidental Scudo-secondary arena placement**, NOT a deliberate redzone and NOT OOS trickery;
+  the major crash variant (garbage scanline, ~12038-row overshoot) faults regardless of the neighbor/guard.
+- **OOS plays no trick:** golden chroma = plain contiguous `luma+stride·H = 0x258000`, `Cr=Cb+2` (no flip),
+  `sliceHeight=960=align_up(960)` (no wrong height). OOS's only edge is having the alignment field POPULATED.
+**LEADING ROOT (INFERRED, project LEDGER):** the LOS camera HAL doesn't emit the Oplus vendor tag
+`com.oplus.aps.platform.output.alignment` → `libAlgoProcess +0x5c76f4` reads `0/0` → garbage chroma/scanline.
+A camera-HAL (CHI/oemlayer/cameraserver) vendor-tag PRODUCER gap — not gralloc/display/props/allocation.
+**CONVICTION PROBE (LOS):** hook `libAlgoProcess +0x5c76f4`; dump the tag value + the resulting chroma offset,
+LOS vs golden. Absent/`0` on LOS vs a real alignment on golden ⇒ convicted; then trace the OOS producer of the
+tag (CHI/oemlayer) and replicate it. (The dmabuf-len, byte-identity, guard-page, and libapsfixup-oracle
+sections below remain CONFIRMED; only the "surviving root = gralloc metadata seam" attribution is superseded.)
 
 ## What was REFUTED today (record-keeping — these were live leads we killed)
 - **"Force the output to linear P010 (0x36)" as the OOS-faithful fix** — REJECTED. Live A/B: stock OOS
@@ -81,7 +103,10 @@ buffer; masked on OOS by the neighbor) and **(B) genuine metadata garbage** (`V2
 `scanline=4093391407`, `chroma=0x7900000600`; tombstone run2: 12038-row overshoot). (B) overshoots far past
 any neighbor and would crash regardless of heap layout.
 
-## The surviving root — QTI extended metadata not populated/exposed on LOS
+## The surviving root — QTI extended metadata not populated/exposed on LOS  [SUPERSEDED — see CORRECTION above]
+> This section is RETAINED for the addresses/field-map but its ROOT ATTRIBUTION is refuted: `getPlaneLayout`
+> is dormant on the golden too, so the QTI metadata GET path is not the divergence. The real geometry source
+> is the Oplus vendor tag `com.oplus.aps.platform.output.alignment` (libAlgoProcess +0x5c76f4), absent on LOS.
 Live LOS: `APSGrallocUtils::getPlaneLayout` (libAlgoProcess +0x12127c) **never fires** and
 `camApsBufferLockPlanes` early-returns `descriptor=0x0` for the P010_VENUS buffer. APS reads geometry from
 the **QTI-extended** gralloc metadata (`PLANE_LAYOUTS` / `libqdMetaData`), **not** the AOSP-standard
