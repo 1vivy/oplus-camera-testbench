@@ -72,8 +72,23 @@ The ONE missing fact is what format the OOS fusion-OUTPUT buffer is allocated wi
 - **Also useful on OOS** (confirm scenario #2 if Venus): hook `APSGrallocUtils::getPlaneLayout` (`libAlgoProcess`
   +0x12127c) — does it FIRE (success, writes chroma) for the OOS Venus output? And dump the `useMetadata` singleton
   flag (`*(get_singleton()+0x10)`). If it fires on OOS but not LOS → the gralloc PLANE_LAYOUTS metadata / flag is the lever.
+- **`trace_gralloc_alloc_request.js`** — REQUESTED format/usage at allocation (AHardwareBuffer_allocate /
+  GraphicBufferAllocator::allocate) vs RESOLVED (describe). End-to-end REQUEST→SnapAlloc-resolution→consumer.
+  DECISIVE for the lever: LOS requests IMPL_DEFINED(0x22)→Venus while OOS requests explicit linear 0x36 ⇒ fix =
+  request explicit linear for the output; both request the same ⇒ it's the SnapAlloc resolution (gralloc prop/usage).
 - **`probe_basictone_geom.js`** — confirms the consumer side (BasicTone Image w/h/stride/sliceHeight vs mapped extent);
   on OOS the OUTPUT Image's `sliceHeight` will be valid (==height-aligned), the LOS contrast.
+
+### Static/golden deductions already in hand (no device needed)
+- `useMetadata` flag is NOT the lever: `getPlaneLayout` (the metadata path it gates) fired 0× in the golden AND on LOS
+  → both take the lockPlanes/describe path; the discriminator is the FORMAT, not the metadata path.
+- Same gralloc backend BOTH sides: `SnapAlloc` (golden 1478 / LOS 479 hits; `enable_snapalloc`, `disable_ubwc=0`).
+  Same engine + same usage(0x20003) ⇒ the divergence is the REQUEST, not the resolution engine.
+- describe shows input `fmt=0x36 usage=0x20003` vs output `fmt=0x7FA30C0A usage=0x20003` (same usage, different format)
+  ⇒ output format is requested distinctly (explicit Venus or IMPL_DEFINED→Venus), input is explicit linear.
+- No feature2/usecase XML or build-prop in the OOS .300 dump names the fusion output format / Venus / useMetadata
+  ⇒ the decision is runtime/code in the byte-identical blob, not a config diff. Golden has NO 0x7FA30C0A anywhere
+  (strong-suggestive of scenario #1, but the internal fusion buffer isn't logged by ClassifyStream — not conclusive).
 - Cross-check: dump the OOS fusion OUTPUT stream's gralloc usage flags (compare to LOS `0x20003`) — a usage-driven
   gralloc resolution would explain Venus-vs-linear without an explicit format change.
 
