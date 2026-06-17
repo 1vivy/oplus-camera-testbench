@@ -30,12 +30,22 @@ seam" thesis (stated in the original TL;DR and the "surviving root" section) is 
   the major crash variant (garbage scanline, ~12038-row overshoot) faults regardless of the neighbor/guard.
 - **OOS plays no trick:** golden chroma = plain contiguous `luma+stride·H = 0x258000`, `Cr=Cb+2` (no flip),
   `sliceHeight=960=align_up(960)` (no wrong height). OOS's only edge is having the alignment field POPULATED.
-**LEADING ROOT (INFERRED, project LEDGER):** the LOS camera HAL doesn't emit the Oplus vendor tag
-`com.oplus.aps.platform.output.alignment` → `libAlgoProcess +0x5c76f4` reads `0/0` → garbage chroma/scanline.
-A camera-HAL (CHI/oemlayer/cameraserver) vendor-tag PRODUCER gap — not gralloc/display/props/allocation.
-**CONVICTION PROBE (LOS):** hook `libAlgoProcess +0x5c76f4`; dump the tag value + the resulting chroma offset,
-LOS vs golden. Absent/`0` on LOS vs a real alignment on golden ⇒ convicted; then trace the OOS producer of the
-tag (CHI/oemlayer) and replicate it. (The dmabuf-len, byte-identity, guard-page, and libapsfixup-oracle
+**ROOT — REFINED AGAIN (RE + live map dump):** `com.oplus.aps.platform.output.alignment` is NOT a camera
+vendor tag — it's an **APS JSON params key** read via `APSJsonParser::getJsonMetadata` from
+`sApsConfigParamsMap` (3 RE agents agree; no HAL producer/VendorTagDescriptor/config registration; config
+blobs byte-identical). The live map walk shows it is **ABSENT from the WORKING OOS config too** (192 keys;
+only `trbokeh.croprect.align` + `qcom.platform.align`) → `getJsonMetadata` returns `count=0` on OOS as well.
+SYMMETRIC with the golden — NOT a static-config divergence. ⇒ By elimination (not static config, not gralloc
+metadata, not a vendor tag — all symmetric on the golden), the alignment value that makes OOS work comes from
+a **RUNTIME source**: per-session OEM param injection via `camApsSetParameters` / `APSParamsHolderImpl`, which
+is **OEM-`com.oplus.camera`-identity-gated** (the port's known systemic gap). LEADING (INFERRED) ROOT:
+**OEM-identity-gated runtime param/metadata STARVATION** — one root for the P010 alignment AND the SAT-fusion
+identity / `oemChimetadatas.size 0` class. (The author's `+0x5c76f4` in op_force_align.js is pinned to BuildId
+`627697fe`, NOT our `.300` `2217d555`; Lane A even found those fields dead on `.300` — re-pin before trusting it.)
+**CONVICTION PROBE:** read `APSParamsHolderImpl::getParamsMap` / `camApsGetParameters` (the RUNTIME params, vs
+the static `sApsConfigParamsMap` already dumped) OOS vs LOS for the alignment; and trace `camApsSetParameters`
+at init (needs debug-app-wait spawn — post-attach misses it). If identity-gated, the fix is the same
+`CAMERA_PACKAGE_NAME` identity work already in flight, fixing a whole param class, not just P010. (The dmabuf-len, byte-identity, guard-page, and libapsfixup-oracle
 sections below remain CONFIRMED; only the "surviving root = gralloc metadata seam" attribution is superseded.)
 
 ## What was REFUTED today (record-keeping — these were live leads we killed)
