@@ -55,8 +55,9 @@ Java.perform(function () {
   // ---- 2. the bridge method itself (only exists AFTER the fix) ----
   try {
     var SI = Java.use('android.media.ImageReader$SurfaceImage');
-    SI.getOplusHardwareBuffer.implementation = function () {
-      var hb = this.getOplusHardwareBuffer();
+    var bridgeOv = SI.getOplusHardwareBuffer.overload();
+    bridgeOv.implementation = function () {
+      var hb = bridgeOv.call(this);
       console.log(ts() + ' [BRIDGE ] SurfaceImage.getOplusHardwareBuffer() -> ' + hb);
       return hb;
     };
@@ -68,8 +69,9 @@ Java.perform(function () {
   // ---- 3. the fallback path (always present) — fires when the bridge is absent ----
   try {
     var SI2 = Java.use('android.media.ImageReader$SurfaceImage');
-    SI2.getHardwareBuffer.implementation = function () {
-      var hb = this.getHardwareBuffer();
+    var fallbackOv = SI2.getHardwareBuffer.overload();
+    fallbackOv.implementation = function () {
+      var hb = fallbackOv.call(this);
       console.log(ts() + ' [fallback] SurfaceImage.getHardwareBuffer() -> ' + hb);
       return hb;
     };

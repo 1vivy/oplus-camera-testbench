@@ -17,8 +17,9 @@ function hookJava() {
       const IR = Java.use('android.media.ImageReader');
       ['acquireNextImage', 'acquireLatestImage'].forEach(function (m) {
         if (IR[m]) {
-          IR[m].overload().implementation = function () {
-            const r = this[m]();
+          const ov = IR[m].overload();
+          ov.implementation = function () {
+            const r = ov.call(this);
             if (r === null) acqNull++; else acqOk++;
             return r;
           };
@@ -29,13 +30,15 @@ function hookJava() {
     // --- Image.close (recycle back to pool) ---
     try {
       const Img = Java.use('android.media.Image');
-      Img.close.implementation = function () { imgClose++; return this.close(); };
+      const ov = Img.close.overload();
+      ov.implementation = function () { imgClose++; return ov.call(this); };
     } catch (e) { console.log('Image.close err ' + e); }
 
     // --- HardwareBuffer.close (the free the app supposedly never calls) ---
     try {
       const HB = Java.use('android.hardware.HardwareBuffer');
-      HB.close.implementation = function () { hbClose++; return this.close(); };
+      const ov = HB.close.overload();
+      ov.implementation = function () { hbClose++; return ov.call(this); };
     } catch (e) { console.log('HB.close err ' + e); }
 
     // --- the Oplus bridge: find any getOplusHardwareBuffer method on Image/SurfaceImage ---

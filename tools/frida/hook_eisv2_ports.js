@@ -75,7 +75,8 @@ function hook(base) {
 }
 
 (function main() {
-  var b = Module.findBaseAddress(LIB);
+  var m0 = Process.findModuleByName(LIB);
+  var b = m0 ? m0.base : null;
   if (b !== null) { hook(b); return; }
   console.log('[eisv2] ' + LIB + ' not loaded yet — waiting for dlopen (open camera + select 8K)...');
   // Hook dlopen/android_dlopen_ext to catch the lazy load at configure time.
@@ -86,7 +87,8 @@ function hook(base) {
       onEnter: function (a) { this.path = a[0].isNull() ? '' : a[0].readCString(); },
       onLeave: function () {
         if (this.path && this.path.indexOf('sstabrealt') !== -1) {
-          var bb = Module.findBaseAddress(LIB);
+          var mm = Process.findModuleByName(LIB);
+          var bb = mm ? mm.base : null;
           if (bb !== null) hook(bb);
         }
       }
