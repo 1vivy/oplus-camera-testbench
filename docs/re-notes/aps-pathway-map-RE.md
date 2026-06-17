@@ -112,6 +112,23 @@ SIGABRT` (crashes on the 8K/provider path before reaching 8009). Two real diverg
 BasicTone crash). The 8009 streams are RAW/linear-P010 capture INPUTS (1920×1440/4096×3072 Y8/RAW_OPAQUE/0x36),
 NOT the fusion output — so op_mode is pipeline-INSTABILITY evidence, not the direct P010-geometry lever.
 
+## STRUCTURAL CORRECTION: the AOSP graphics framework DIFFERS OOS↔LOS (2026-06-17)
+"Everything byte-identical" held only for the VENDOR/proprietary blobs. The from-source AOSP graphics framework
+is DIFFERENT (BuildId): `libgui` (2d90a5b3→66288fe1), `libnativewindow` (49d18a27→628c08b8; AHardwareBuffer_
+lockPlanes/describe live here), `libui` (144d8869→ff41ae5f; GraphicBufferAllocator + Gralloc4/5Mapper client),
+`libgralloctypes` (dfed9a5c→887086c0; PLANE_LAYOUTS encode/decode). OplusCamera.apk also differs (OOS 8f13e3ce
+vs LOS-built 5031618c vs LOS-tree 3081bf9d — rebuilt/re-signed).
+CAVEATS (why this may be BENIGN): (a) OOS symbols are stock AOSP (no oplus/venus markers); the 717-vs-2610
+func-count gap is STRIPPING (OOS dynsym vs LOS full symbols), not OEM additions. (b) The P010 plane-layout MATH
+is in the byte-identical `mapper.qti`; `libui` GraphicBufferMapper/Gralloc4-5Mapper RELAY the IMapper result.
+DECISIVE no-device TEST: binary-diff `libui` `GraphicBufferMapper::getPlaneLayouts` / `Gralloc4-5Mapper::get`
+(and `libgralloctypes decodePlaneLayouts`) OOS-blob vs LOS-build — are they code-identical, or did the LOS build
+drop the QTI gralloc patch (a common stock-AOSP-on-QTI LineageOS gap)? Identical ⇒ framework lead dead, it's a
+pure runtime VALUE (mOutputAlignmentStride/Scanline=0 on LOS, fed from an unpinned native source — needs the
+device probes). Different in the P010 path ⇒ that's the root. NOTE: getPlaneLayout is DORMANT in APS, so the
+PLANE_LAYOUTS path may be moot; the live geometry is the lock (lockPlanes→mapper.qti, byte-identical) — which
+argues the framework diff is benign and the root is the runtime alignment value.
+
 ## Anchors
 - libAPSClient-jni: `oplus_aps_addFrameBuff`, `oplus_aps_setParameters`, keys `buffer_input_{width,height,stride,scanline}`,
   `gAPSOps.pfnAPSBufLckPlanes`. CHI: `ChiFeature2Base::InitBokehSatStream`, `CHIBufferManager`. Producer alloc:
