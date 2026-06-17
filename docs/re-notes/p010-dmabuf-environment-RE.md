@@ -45,7 +45,18 @@ identity / `oemChimetadatas.size 0` class. (The author's `+0x5c76f4` in op_force
 **CONVICTION PROBE:** read `APSParamsHolderImpl::getParamsMap` / `camApsGetParameters` (the RUNTIME params, vs
 the static `sApsConfigParamsMap` already dumped) OOS vs LOS for the alignment; and trace `camApsSetParameters`
 at init (needs debug-app-wait spawn — post-attach misses it). If identity-gated, the fix is the same
-`CAMERA_PACKAGE_NAME` identity work already in flight, fixing a whole param class, not just P010. (The dmabuf-len, byte-identity, guard-page, and libapsfixup-oracle
+`CAMERA_PACKAGE_NAME` identity work already in flight, fixing a whole param class, not just P010.
+**UPDATE (user, 2026-06-17): the `com.oplus.camera` identity gate is ALREADY in effect on the LOS tests and
+P010 still crashes ⇒ identity-gated-starvation REFUTED.** So the runtime alignment source is NOT gated by the
+OEM identity. Net honest state: kernel, gralloc/mapper/libqdMetaData, props, dmabuf-len, static APS config,
+vendor-tag path, AND the identity gate are ALL cleared (symmetric-with-golden or already-satisfied). The
+divergence that zeros the chroma alignment on LOS is DYNAMIC and has not surfaced in any static or OOS-side
+artifact — the recurring "symmetric red herring" IS the finding. Only catchable AT the crash on LOS: hook the
+per-capture chroma-plane computation (b2yProcessResult/converter, re-pinned to .300 `2217d555`), dump the
+alignment + Image w/h/stride/scanline + its derivation at the point chroma goes garbage, vs the OOS golden
+(chroma = luma + stride·H = +0x258000). Candidate runtime inputs still untested: op_mode / SAT-fusion-node
+enablement / a per-session OEM request field (NOT the identity). Interim (unblocks v1.5): op_force_align
+re-pinned to `.300`. (The dmabuf-len, byte-identity, guard-page, and libapsfixup-oracle
 sections below remain CONFIRMED; only the "surviving root = gralloc metadata seam" attribution is superseded.)
 
 ## What was REFUTED today (record-keeping — these were live leads we killed)
