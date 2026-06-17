@@ -1,0 +1,65 @@
+[fmt] hooked AHardwareBuffer_describe @ 0x7b76be24e8 — take ONE Master/Pro P010 capture.
+[fmt] DECISIVE: is the 1280x960-class OUTPUT format 0x36 (linear) or 0x7FA30C0A (Venus)?
+[req] hooked AHardwareBuffer_allocate @ 0x7b76be2020
+[req] hooked _ZN7android22GraphicBufferAllocator8allocateEjji @ 0x7b5345adf0
+[req] hooked AHardwareBuffer_describe (resolved correlate) @ 0x7b76be24e8
+[req] armed — A/B this OOS vs LOS: compare REQUEST format vs RESOLVED for the ~1280x960 10-bit OUTPUT.
+[fmt] 1920x1440 layers=1 format=0x23 (YCbCr_420_888) usage=0x20103 stride=1920
+[resolved describe] 1920x1440 format=0x23 (YCbCr_420_888) usage=0x20103
+[fmt] 960x720 layers=1 format=0x11 (0x11) usage=0x20003 stride=1024
+[resolved describe] 960x720 format=0x11 (0x11) usage=0x20003
+[req AHB_allocate] 1920x1080 REQUEST format=0x11 (0x11) usage=0x20003
+[req AHB_allocate] 1920x1080 REQUEST format=0x11 (0x11) usage=0x20003
+[fmt] 1920x1080 layers=1 format=0x23 (YCbCr_420_888) usage=0x20103 stride=1920
+[resolved describe] 1920x1080 format=0x23 (YCbCr_420_888) usage=0x20103
+[fmt][recap] 1920x1440|23×467  960x720|11×84  1920x1080|23×99
+[req AHB_allocate] 1920x1440 REQUEST format=0x11 (0x11) usage=0x20003
+[fmt] 1920x1440 layers=1 format=0x36 (LINEAR_P010) usage=0x40020103 stride=1920  <== LINEAR (input contract)
+[resolved describe] 1920x1440 format=0x36 (LINEAR_P010) usage=0x40020103  <<< LINEAR (input)
+[fmt][recap] 1920x1440|23×467  960x720|11×84  1920x1080|23×703  1920x1440|36×130
+[fmt] 4096x3072 layers=1 format=0x25 (0x25) usage=0x20003 stride=5120
+[resolved describe] 4096x3072 format=0x25 (0x25) usage=0x20003
+[req AHB_allocate] 4096x3072 REQUEST format=0x25 (0x25) usage=0x20003
+[req AHB_allocate] 1280x960 REQUEST format=0x36 (LINEAR_P010) usage=0x20003
+[fmt] 1280x960 layers=1 format=0x36 (LINEAR_P010) usage=0x20003 stride=1280  <== LINEAR (input contract)
+[resolved describe] 1280x960 format=0x36 (LINEAR_P010) usage=0x20003  <<< LINEAR (input)
+[req AHB_allocate] 1280x960 REQUEST format=0x36 (LINEAR_P010) usage=0x20003
+[req AHB_allocate] 1280x960 REQUEST format=0x7fa30c0a (P010_VENUS) usage=0x20003
+[fmt] 1280x960 layers=1 format=0x7fa30c0a (P010_VENUS) usage=0x20003 stride=1280  <== VENUS (the crashing OUTPUT on LOS — needs geometry)
+[resolved describe] 1280x960 format=0x7fa30c0a (P010_VENUS) usage=0x20003  <<< VENUS (the crashing output)
+[req AHB_allocate] 1280x960 REQUEST format=0x7fa30c0a (P010_VENUS) usage=0x20003
+[req AHB_allocate] 960x1280 REQUEST format=0x7fa30c0a (P010_VENUS) usage=0x20003
+[fmt] 960x1280 layers=1 format=0x7fa30c0a (P010_VENUS) usage=0x20003 stride=1024  <== VENUS (the crashing OUTPUT on LOS — needs geometry)
+[resolved describe] 960x1280 format=0x7fa30c0a (P010_VENUS) usage=0x20003  <<< VENUS (the crashing output)
+[req AHB_allocate] 960x1280 REQUEST format=0x11 (0x11) usage=0x20003
+[fmt] 960x1280 layers=1 format=0x11 (0x11) usage=0x20003 stride=1024
+[resolved describe] 960x1280 format=0x11 (0x11) usage=0x20003
+[req AHB_allocate] 3072x4096 REQUEST format=0x11 (0x11) usage=0x20003
+[fmt] 3072x4096 layers=1 format=0x11 (0x11) usage=0x20003 stride=3072
+[resolved describe] 3072x4096 format=0x11 (0x11) usage=0x20003
+[req AHB_allocate] 3200x4160 REQUEST format=0x11 (0x11) usage=0x20003
+[fmt] 3200x4160 layers=1 format=0x11 (0x11) usage=0x20003 stride=3200
+[resolved describe] 3200x4160 format=0x11 (0x11) usage=0x20003
+[fmt][recap] 1920x1440|23×467  960x720|11×84  1920x1080|23×703  1920x1440|36×580  4096x3072|25×78  1280x960|36×9  1280x960|7fa30c0a×6  960x1280|7fa30c0a×4  960x1280|11×6  3072x4096|11×9  3200x4160|11×2
+[fmt][recap] 1920x1440|23×467  960x720|11×84  1920x1080|23×703  1920x1440|36×1025  4096x3072|25×78  1280x960|36×9  1280x960|7fa30c0a×6  960x1280|7fa30c0a×4  960x1280|11×6  3072x4096|11×9  3200x4160|11×2
+[req AHB_allocate] 4096x3072 REQUEST format=0x25 (0x25) usage=0x20003
+[req AHB_allocate] 1280x960 REQUEST format=0x36 (LINEAR_P010) usage=0x20003
+[req AHB_allocate] 1280x960 REQUEST format=0x36 (LINEAR_P010) usage=0x20003
+[req AHB_allocate] 1280x960 REQUEST format=0x7fa30c0a (P010_VENUS) usage=0x20003
+[req AHB_allocate] 1280x960 REQUEST format=0x7fa30c0a (P010_VENUS) usage=0x20003
+[req AHB_allocate] 960x1280 REQUEST format=0x7fa30c0a (P010_VENUS) usage=0x20003
+[req AHB_allocate] 960x1280 REQUEST format=0x11 (0x11) usage=0x20003
+[req AHB_allocate] 3072x4096 REQUEST format=0x11 (0x11) usage=0x20003
+[req AHB_allocate] 3200x4160 REQUEST format=0x11 (0x11) usage=0x20003
+[fmt][recap] 1920x1440|23×467  960x720|11×84  1920x1080|23×703  1920x1440|36×1475  4096x3072|25×156  1280x960|36×18  1280x960|7fa30c0a×12  960x1280|7fa30c0a×8  960x1280|11×12  3072x4096|11×18  3200x4160|11×4
+[req AHB_allocate] 4096x3072 REQUEST format=0x25 (0x25) usage=0x20003
+[req AHB_allocate] 1280x960 REQUEST format=0x36 (LINEAR_P010) usage=0x20003
+[req AHB_allocate] 1280x960 REQUEST format=0x36 (LINEAR_P010) usage=0x20003
+[req AHB_allocate] 1280x960 REQUEST format=0x7fa30c0a (P010_VENUS) usage=0x20003
+[req AHB_allocate] 1280x960 REQUEST format=0x7fa30c0a (P010_VENUS) usage=0x20003
+[req AHB_allocate] 960x1280 REQUEST format=0x7fa30c0a (P010_VENUS) usage=0x20003
+[req AHB_allocate] 960x1280 REQUEST format=0x11 (0x11) usage=0x20003
+[req AHB_allocate] 3072x4096 REQUEST format=0x11 (0x11) usage=0x20003
+[req AHB_allocate] 3200x4160 REQUEST format=0x11 (0x11) usage=0x20003
+[fmt][recap] 1920x1440|23×467  960x720|11×84  1920x1080|23×703  1920x1440|36×1925  4096x3072|25×240  1280x960|36×27  1280x960|7fa30c0a×18  960x1280|7fa30c0a×12  960x1280|11×18  3072x4096|11×27  3200x4160|11×6
+[fmt][recap] 1920x1440|23×467  960x720|11×84  1920x1080|23×703  1920x1440|36×2375  4096x3072|25×240  1280x960|36×27  1280x960|7fa30c0a×18  960x1280|7fa30c0a×12  960x1280|11×18  3072x4096|11×27  3200x4160|11×6

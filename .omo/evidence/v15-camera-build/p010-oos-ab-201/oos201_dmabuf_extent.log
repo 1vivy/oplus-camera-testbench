@@ -1,0 +1,17 @@
+# Live OOS 16.0.7.201 (CPH2747) — backing dma-buf extent + neighbor for the P010_VENUS fusion buffer
+# Probe: tools/frida/trace_venus_dmabuf_extent.js  (2026-06-17, 3 Master/Pro captures, camera stayed alive)
+
+[ext] armed on lockPlanes @ 0x7f227d5810
+[ext] 1280x960 P010_VENUS stride=1280 | dmabuf base=0x7c4f07c000 size=0x384000 prot=rw- (lumaOff=0x0) | expect 0x384000 -> EXACT (no pad) | AFTER end=0x7c4f400000: MAPPED size=0xc00000 prot=rw- | file=/dmabuf:AHardwareBuffer pid [15987]
+[ext] 1280x960 P010_VENUS stride=1280 | dmabuf base=0x7c4f07c000 size=0x384000 prot=rw- (lumaOff=0x0) | expect 0x384000 -> EXACT (no pad) | AFTER end=0x7c4f400000: MAPPED size=0xc00000 prot=rw- | file=/dmabuf:AHardwareBuffer pid [15987]
+[ext] 960x1280 P010_VENUS stride=1024 | dmabuf base=0x7c4f040000 size=0x3c0000 prot=rw- (lumaOff=0x0) | expect (stride1024*2*1920)=0x3c0000 -> EXACT (no pad) | AFTER end=0x7c4f400000: MAPPED size=0xc00000 prot=rw- | file=/dmabuf:AHardwareBuffer pid [15987]
+[ext] 960x1280 P010_VENUS stride=1024 | dmabuf base=0x7c4f040000 size=0x3c0000 prot=rw- (lumaOff=0x0) | expect (stride1024*2*1920)=0x3c0000 -> EXACT (no pad) | AFTER end=0x7c4f400000: MAPPED size=0xc00000 prot=rw- | file=/dmabuf:AHardwareBuffer pid [15987]
+
+# INTERPRETATION
+# 1280x960 P010_VENUS = EXACTLY 0x384000 (byteStride 2560 * 1.5*960 = 2560*1440). IDENTICAL to the LOS
+#   tombstone_36 buffer (00000074'14df4000-00000074'15177fff = 0x384000). So dmabuf len is NOT the divergence.
+# (Earlier run mis-labeled the 960x1280 buffer "PADDED" using a hardcoded 0x384000; with the correct
+#  stride-1024 math 0x3c0000 IS the exact contiguous size — both OOS buffers are exact, zero tail padding.)
+# The page IMMEDIATELY AFTER the 1280x960 buffer end (0x7c4f400000) is a MAPPED rw- /dmabuf:AHardwareBuffer
+# NEIGHBOR on OOS — so BasicTone's tail fencepost over-read reads a garbage value but does NOT fault.
+# On LOS the same offset is a PROT_NONE guard page -> SIGSEGV. Same buffer size, different heap placement.

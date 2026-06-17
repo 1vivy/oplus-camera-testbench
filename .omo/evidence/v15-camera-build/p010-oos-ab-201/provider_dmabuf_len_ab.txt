@@ -1,0 +1,18 @@
+# Provider-side DMA_HEAP_IOCTL_ALLOC A/B (trace_dmabuf_alloc.js), OOS golden vs LOS
+# NOTE: the 1280x960 P010 fusion OUTPUT (0x384000) is allocated APP-side, NOT here -> see oos201_dmabuf_extent.log
+
+=== LOS  p010 : 52 allocs ===  heaps: {'/dev/dma_heap/system': 36, '/dev/dma_heap/qcom,system': 16}
+=== OOS  p010(golden) : 69 allocs ===  heaps: {'/dev/dma_heap/system': 50, '/dev/dma_heap/qcom,system': 19}
+=== LOS  p010-basictone : 38 allocs ===  heaps: {'/dev/dma_heap/system': 26, '/dev/dma_heap/qcom,system': 12}
+
+# Shared P010-class buffers (3.0-8.0MB) - len IDENTICAL where present on both:
+  LOS  p010           : 0x400000(x1), 0x43e000(x1), 0x451000(x1), 0x500000(x1), 0x600000(x1), 0x77e000(x1), 0x780000(x1)
+  OOS  p010(golden)   : 0x301000(x1), 0x400000(x1), 0x43e000(x1), 0x446000(x1), 0x451000(x1), 0x45b000(x1), 0x500000(x1), 0x545000(x1), 0x55f000(x1), 0x600000(x1), 0x64e000(x1), 0x77e000(x1), 0x780000(x1)
+  LOS  p010-basictone : 0x400000(x1), 0x43e000(x1), 0x451000(x1), 0x77e000(x1), 0x780000(x1)
+
+# sizes only LOS allocates: []
+# sizes only OOS allocates: [81920, 245760, 258420, 310104, 481280, 495616, 655360, 724992, 888832, 921600, 3149824, 4481024, 4567040, 5525504, 5632000, 6610944, 20316160]
+
+# VERDICT: heaps identical-mix; shared P010 buffers identical len; OOS allocates 17 extra
+#   distinct sizes LOS never does (reduced/truncated LOS pipeline - likely fusion-stage
+#   crash-truncation). dmabuf len is NOT the alloc-size divergence.

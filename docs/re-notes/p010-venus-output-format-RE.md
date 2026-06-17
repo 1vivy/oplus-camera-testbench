@@ -1,6 +1,27 @@
 <!-- STATUS: VERIFIED — live device (CPH2747 LOS V16.1.0 / BP4A.251205.006) Frida + Ghidra(.300 blobs) +
-     golden A/B (2026-06-17). Fix VALIDATED on-device. Supersedes the gAPSOps/BasicTone-Cb-Cr framings. -->
+     golden A/B (2026-06-17). Fix VALIDATED on-device. Supersedes the gAPSOps/BasicTone-Cb-Cr framings.
+     UPDATE 2026-06-17 (a): OOS A/B on stock OOS 16.0.7.201 (CPH2747) — OOS requests the SAME P010_VENUS
+     output (usage 0x20003) and its gralloc reports VALID contiguous geometry. So fix #1 (force-linear) is
+     a workaround, not OOS-parity.
+     UPDATE 2026-06-17 (b) — UBWC-CONFIG LEVER **REFUTED**: live OOS reverse-A/B + 3-lane deep-dive proved
+     the gralloc/UBWC/prop layer is NOT the root. ALL of {kernel (OOS prebuilt), every vendor blob in the
+     allocate->metadata->read chain (gralloc.qti, snapalloc-impl, mapper.qti, libqdMetaData,
+     libcamxexternalformatutils, libAlgoProcess/Interface), and the props (canoe SoC sets neither;
+     unset==0==no-op by disasm)} are byte-identical/identical OOS<->LOS. `hw_supports_ubwcp=0` is benign;
+     `disable_ubwc=1` only triggers a DIFFERENT (provider recovery-storm) crash. The divergence is NOT a
+     binary and NOT the props. SURVIVING ROOT: the QTI EXTENDED gralloc metadata (PLANE_LAYOUTS) for the
+     Venus buffer is never populated/exposed on LOS (getPlaneLayout never fires; camApsBufferLockPlanes
+     descriptor=0x0) — traced to the only from-source layer (AOSP framework + AIMapper stable-C interface /
+     linker-namespace/VNDK / sepolicy), NOT the byte-identical display/gralloc blobs. See
+     `.omo/evidence/v15-camera-build/p010-oos-ab-201/VERDICT.md` (SUPERSEDED section). -->
 # P010 photo-save crash root — the fusion OUTPUT buffer is `P010_VENUS`, inputs are linear P010
+
+> **⚠️ SUPERSEDED IN PART (2026-06-17) → see [`p010-dmabuf-environment-RE.md`](p010-dmabuf-environment-RE.md).**
+> Live OOS A/B + 3-lane deep-dive proved the "Venus output FORMAT / gralloc-UBWC-config is the lever" thesis
+> WRONG: OOS requests the same Venus output, dmabuf `len` is identical (`0x384000`), and the entire
+> kernel+blob+prop chain is byte-identical. The real root is the QTI extended `PLANE_LAYOUTS` metadata not
+> reaching APS on LOS, traced to the only from-source layer (AOSP framework / AIMapper interface / namespace /
+> sepolicy). The mechanism/addresses below remain correct; the FIX-DIRECTION sections are superseded.
 
 ## TL;DR
 The OnePlus 15 LOS camera P010/Pro photo-save crash is a **single geometry root**: the SAT/fusion **OUTPUT**
