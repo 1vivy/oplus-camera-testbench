@@ -89,6 +89,29 @@ math authority = `libcamxexternalformatutils.so` `CamxFormatUtil_{GetScanline,Ge
 4. **No-device NOW:** jadx the OCS SDK (subsystem #1) for the `buffer_input_scanline` computation.
 Probe scaffold: `tools/frida/track_gralloc_handle.js` (handle tracker) + `tools/frida/aps_pathway_ruleout.js` (this map).
 
+## OCS SDK (Java) is INNOCENT of geometry — and the op_mode/pipeline finding (2026-06-17, jadx + log A/B)
+**jadx of `com.oplus.camera.unit.sdk.jar` `ApsProcessor.addPictureImage(ImageBuffer,i,i2,i3,tag)`:** the Java
+side hands APS `KEY_IMAGE_FORMAT/WIDTH/HEIGHT` (= `HardwareBuffer.getFormat()/getWidth()/getHeight()`),
+`KEY_IMAGE_ROLE`(i)/`KEY_PHYSICAL_ID`(i2)/`KEY_HDR_TYPE`(i3), and SCENE/DECISION params
+(`KEY_CAPTURE_FEATURE_TYPE`=`cameraRequestTag.mApsDecisionFeatureType`, `KEY_TURBO_RAW_SENCE`,
+`KEY_SUPER_NIGHT_SCENE`, `KEY_CAPTURE_MODE`, burst keys) — **NO stride, NO scanline, NO compute.** So the
+native key `buffer_input_stride/scanline` is NOT Java-supplied; only `buffer_input_width/height` map from
+Java (getWidth/getHeight), and stride/scanline are derived NATIVELY by the lock. ⇒ the Java SDK is innocent
+of geometry; the divergence is native (byte-identical) operating on the buffer's **resolved FORMAT** (Java
+`getFormat()` → native `camApsBufferDesc` format-switch) + the **capture-decision feature/HDR type** that
+selects the APS engine. The fusion OUTPUT (1280×960 P010_VENUS) is allocated APS-INTERNAL; the SDK only hands
+the capture INPUT Image's HardwareBuffer.
+**NEW no-device leads:** (1) `mApsDecisionFeatureType` / `KEY_HDR_TYPE` / `KEY_TURBO_RAW_SENCE` — the capture
+decision in **OplusCamera.apk** (jadx) — if LOS picks a different feature/HDR/turbo path, APS runs a different
+engine → different output geometry. (2) `KEY_IMAGE_FORMAT` — what the capture Image resolves to (IMPL_DEFINED
+resolution) OOS vs LOS.
+**op_mode A/B (masterraw configure_streams, ordered, truncation-robust):** OOS = `8001→80a9→8009×3` per capture
+(the 8009 SAT-fusion burst repeats 3×); LOS = `8001→[op_mode=0x0/1-stream/320×240 DEGENERATE]→80a9→PROVIDER
+SIGABRT` (crashes on the 8K/provider path before reaching 8009). Two real divergences: LOS inserts a degenerate
+0x0 reconfigure OOS never does, and the provider crashes (ncsUnreleased class, separate from the app-side P010
+BasicTone crash). The 8009 streams are RAW/linear-P010 capture INPUTS (1920×1440/4096×3072 Y8/RAW_OPAQUE/0x36),
+NOT the fusion output — so op_mode is pipeline-INSTABILITY evidence, not the direct P010-geometry lever.
+
 ## Anchors
 - libAPSClient-jni: `oplus_aps_addFrameBuff`, `oplus_aps_setParameters`, keys `buffer_input_{width,height,stride,scanline}`,
   `gAPSOps.pfnAPSBufLckPlanes`. CHI: `ChiFeature2Base::InitBokehSatStream`, `CHIBufferManager`. Producer alloc:
