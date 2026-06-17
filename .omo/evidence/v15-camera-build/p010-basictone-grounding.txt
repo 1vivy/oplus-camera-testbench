@@ -1,0 +1,92 @@
+v15 Todo6 P010 / BasicTone / gralloc grounding
+Generated: 2026-06-16 local MDT
+Status: CAPTURED_WITH_BLOCKERS
+No-shim retirement verdict: BLOCKED. Keep libapsfixup as an interim in-flight fix for v1.5.
+
+Operator override honored
+- The direct bench lane replaced broad campaign execution for this pass.
+- The run drove the camera UI directly and monitored live logs/probes in real time.
+- No persist properties or partitions were written.
+
+Primary artifact
+- /home/vivy/oplus-final/reference/campaign/p010-basictone/direct-20260616-201523
+
+Direct scenario
+- Pushed tools/observability/capture to /data/local/tmp/obs-capture.
+- Started adb logcat -b all -v threadtime and a filtered live log.
+- Attached provider probe trace_dmabuf_alloc.js to camera provider PID 26394.
+- Launched camera/navigation with:
+  DRIVE_NAVONLY=1 DRIVE_NO_CLOSE=1 AE_LOCK=1 sh /data/local/tmp/obs-capture/ui/drive_cycle.sh photo
+- Attached app probes to com.oplus.camera PID 2789:
+  trace_p010_planes.js
+  trace_gralloc_p010_chain.js
+  probe_basictone.js
+  trace_arcsoft_io.js
+- Fired raw full-finger shutter events in PHOTO, then swiped PHOTO -> VIDEO -> MASTER and fired raw shutter again.
+
+Fresh run summary
+- trace_p010_planes_lines=76
+- trace_gralloc_p010_chain_lines=122
+- probe_basictone_lines=65
+- trace_arcsoft_io_lines=95
+- dmabuf_lines=527
+- scene_bytes=693642
+- focus_post=launcher, so the post-run screenshot is tainted and is not used as foreground proof.
+- master_pro bounds were not found, so Pro/Master UI engagement is not claimed as proven.
+
+P010 and gralloc evidence
+- trace_gralloc_p010_chain.log installed hooks for AHardwareBuffer_allocate, GraphicBufferMapper::getPlaneLayouts, QtiMapper5::getMetadata, AHardwareBuffer_lockPlanes, and libAlgoProcess loading.
+- Fresh YCBCR_P010 allocations were observed:
+  - format=0x36(YCBCR_P010), usage=0x20003, width=1280, height=960.
+  - format=0x36(YCBCR_P010), usage=0x20003, width=960, height=1280.
+- AHardwareBuffer_lockPlanes records were present after the P010 allocations.
+- trace_p010_planes.log installed hooks for GBM.getPlaneLayouts, gralloc4.decode, AHardwareBuffer_lockPlanes, GBM.lockYCbCr, APSGrallocUtils::getPlaneLayout, camApsBufferLockPlanes, p010LSB2MSBNeon, and QtiMapper5::getMetadata.
+- trace_dmabuf_alloc.log captured provider-side DMA heap allocation activity during the run.
+
+BasicTone / ArcSoft boundary evidence
+- probe_basictone.log shows getAlgoAPI repeatedly resolved by caller libapsfixup.so+0x1878.
+- probe_basictone.log hooked libBasicTonePhoto.so after load and entered OGLBasicToneProcess:
+  OGLBasicToneProcess ctx=0x748bdf2a00 caller=libBasicTonePhoto.so+0x55e20.
+- The output-image slot was identified before the failure:
+  ctx+0x08 (img2 out) -> 0x748bdf4790, expected to match the saveOutImg Image* path.
+- trace_arcsoft_io.log installed ArcSoft/TurboHDR/HDR process hooks before the failure.
+- The process crashed at:
+  /odm/lib64/libBasicTonePhoto.so (BasicTone_OGL::saveOutImg(Image*)+252)
+  BuildId starts with 012716fee.
+
+Fresh runtime blocker evidence
+- The run window around 20:16:18 local showed APS path failures:
+  gAPSOps.pfnAPSMemHWAcquire is NULL.
+  ApsTotalResult_getTagValue getMetadata, res: -2.
+  gAPSOps.pfnAPSMemHWRelease is NULL.
+  BasicTone VERSION(QCOM): 2025_11_05_14_30_MP.
+- This points at an APS memory/metadata bridge gap before treating BasicTone as an isolated overexposure or postproc-only defect.
+
+No-shim retirement gate
+- FAIL: no-shim retirement cannot be claimed from this run.
+- Required retirement observables were not all present:
+  - non-null descriptor tuple was not proven.
+  - Cb-Y == stride*alignedHeight was not proven.
+  - pitch1 == pitch0 was not proven.
+  - probe_basictone did not safely complete field_0x38 inspection before the crash.
+  - valid ArcSoft IO plus no BasicTone tombstone was not achieved.
+- libapsfixup is still active in the getAlgoAPI path, so removing it now would be ungrounded.
+
+Implementation implication for v1.5
+- Keep libapsfixup as the interim fix, consistent with the user's framing.
+- For v1.5, target a bounded upstream/root fix in opus-fwk/framework integration or APS descriptor/plane plumbing before any shim retirement attempt.
+- Defer MotionPhoto/additional preview native handler work; it is out of scope for v1.5.
+
+Adversarial checks
+- Stale state: camera app storage had been wiped by the user before the direct run; post-run foreground state was launcher and treated as tainted.
+- Hung/long commands: live logcat PID 896337 was registered and killed after capture.
+- Misleading success output: UI navigation logs are not treated as proof of Pro/Master engagement because master_pro bounds were missing.
+- Dirty worktree: evidence is additive and does not revert unrelated local changes.
+- Repeated interruption: source of truth is the plan/ledger plus this direct artifact, not stale hook text.
+
+Cleanup receipt
+- Camera app was force-stopped after the run.
+- adb logcat PID 896337 was killed.
+- The run-local process_cleanup_check.txt still shows the pre-kill logcat process, so it is not used as the final cleanup proof.
+- Final host process scan after the explicit kill returned empty; see todo6-cleanup-postcheck.txt.
+- No QA ports, tmux sessions, containers, temp directories, persist props, or partition writes were left by this pass.

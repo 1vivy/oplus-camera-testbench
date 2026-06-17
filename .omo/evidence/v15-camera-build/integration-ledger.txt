@@ -1,0 +1,263 @@
+Todo 12 integration ledger: v1.5 source changes and overlay closure
+Generated: 2026-06-17T03:25:51Z
+Plan: .omo/plans/v15-camera-build.md
+Plan sha256 at baseline: d68c8af1e9d3c26c67779746c68192bb2318c75164fc3edafc7b4e6f2397c579
+Status: ACCEPTED — overlay OPEN row closed 2026-06-17T03:54:45Z; source commits d49a9e8 (android_hardware_oplus) + 7675520 (android_device_oneplus_infiniti) landed; Todo 13 separately blocked by missing local proprietary_vendor_oneplus_infiniti + generated vendor payload (build-server concern, not source-integration blocker)
+
+Scope and edit boundary
+- This artifact integrates source-change evidence from Todos 8, 9, 10, and 11 plus sync/overlay evidence from Todo 2.
+- This pass edited only .omo/evidence/v15-camera-build/integration-ledger.txt.
+- This pass did not edit the plan checkbox and did not edit .omo/start-work/ledger.jsonl.
+- No production source, device state, overlays, props, persist props, partitions, temp dirs, tmux sessions, browser contexts, ports, containers, or build/capture processes were modified by this pass.
+
+1. Goal and selected files
+
+Selected source changes justified by Todos 8-11:
+
+1. Todo 8 EDR/SF preview fix
+   - Selected source file:
+     infiniti-camera-port/repos/android_hardware_oplus/oplus-fwk/src/com/oplus/osense/OsenseResEventClient.java
+   - Current nested diff summary:
+     1 file changed, 14 insertions(+), 2 deletions(-)
+   - Justification source:
+     .omo/evidence/v15-camera-build/edr-fix.txt
+     .omo/evidence/v15-camera-build/todo8-prechange-static-proof.txt
+     .omo/evidence/v15-camera-build/todo8-postchange-static-proof.txt
+     .omo/evidence/v15-camera-build/todo8-osense-javac-proof.txt
+   - Ledger decision:
+     PROMOTED_TO_SOURCE for the Osense ABI gap only.
+   - What changed:
+     Added Context and BgRunningCallback imports, plus no-op/false-returning Osense methods:
+     unregisterEventCallback(OsenseEventCallback), startBackgroundRunning(Context,int,BgRunningCallback), and stopBackgroundRunning(Context,int).
+   - What is not claimed:
+     No live post-change EDR/SF runtime success is claimed. Todo 13/14 must build and deploy the boot jar before Todo 15 can replay EDR/SF.
+   - Retirement/escalation gate:
+     Native frameworks/native or SurfaceFlinger work remains disallowed unless rebuilt v1.5 evidence shows scalar BLAST/ratio path fires and SF still fails.
+
+2. Todo 9 P010/BasicTone/libapsfixup stabilization
+   - Selected source file:
+     infiniti-camera-port/repos/android_device_oneplus_infiniti/extract-files.py
+   - Current nested diff summary:
+     1 file changed, 8 insertions(+)
+   - Justification source:
+     .omo/evidence/v15-camera-build/p010-basictone-fix.txt
+     .omo/evidence/v15-camera-build/shim-retirement-ledger.txt
+     dodge-camera-port/repos/patches-crdroid/patch-dodge/device,oneplus,dodge/0004-dodge-More-patches-for-op-camera.patch
+   - Ledger decision:
+     PROMOTED_TO_SOURCE for the libBasicTonePhoto length-preserving dstYuv channel-order fixup.
+     KEPT-INTERIM for libapsfixup.
+   - What changed:
+     Added a blob_fixup for odm/lib64/libBasicTonePhoto.so that replaces
+     vec4(dstYuv.r, dstYuv.b, dstYuv.g, 1.0)
+     with
+     vec4(dstYuv.r, dstYuv.g, dstYuv.b, 1.0).
+   - What is not claimed:
+     This is not claimed as a BasicTone_OGL::saveOutImg tombstone fix. Runtime post-change P010/BasicTone proof is deferred to build/deploy/final QA.
+   - Retirement gate:
+     libapsfixup remains KEPT-INTERIM until a no-shim replay proves P010 allocation, non-null descriptor, Cb-Y == stride*alignedHeight, pitch1 == pitch0, valid ArcSoft IO, and no BasicTone tombstone.
+
+3. Todo 10 frameworks/av Depth-2
+   - Selected source files:
+     none.
+   - Justification source:
+     .omo/evidence/v15-camera-build/frameworks-av-depth2-map.txt
+     .omo/evidence/v15-camera-build/frameworks-av-depth2-fix.txt
+     .omo/evidence/v15-camera-build/8k-oemlayer-grounding.txt
+   - Ledger decision:
+     NO_SOURCE_CHANGE_AUTHORIZED.
+   - Reason:
+     Depth-1 CameraServiceExtFactory/onTransact plumbing is source-present and libcsextimpl.so is runtime-mapped, but the clean denominator for Depth-2 authoring was not reached: no op_mode=0x80a9, no 7680x4320 stream, and beforeConfigure/opmode probes only armed without firing.
+   - Retirement/escalation gate:
+     Future Depth-2 authoring requires a clean run proving a selected hook fires with before/after mutation evidence.
+
+4. Todo 11 props contamination
+   - Selected source files:
+     none.
+   - Justification source:
+     .omo/evidence/v15-camera-build/props-contamination.txt
+   - Ledger decision:
+     QUARANTINED_NO_SOURCE_CHANGE.
+   - Reason:
+     Local sources do not prove backCamSize/frontCamSize are baseline truth. The props remain contamination until a live device-side source is independently attributed.
+
+Out-of-scope lock
+- MotionPhoto remains out of scope.
+- 725bd52 remains out of scope.
+- oplus-camera-stubs remains hard-excluded as a v1.5 implementation vector.
+- Blind surfaceflinger swap remains out of scope.
+- persist props, partition writes, setprop/resetprop, and device writes remain out of scope.
+
+2. Baseline and failing-first proof captured before writing this artifact
+
+Baseline timestamp:
+- 2026-06-17T03:25:51Z
+
+Baseline plan hash:
+- d68c8af1e9d3c26c67779746c68192bb2318c75164fc3edafc7b4e6f2397c579  .omo/plans/v15-camera-build.md
+
+Baseline root git status --short --untracked-files=all before this artifact:
+- Modified root tooling files:
+  M tools/frida/hook_eisv2_ports.js
+  M tools/frida/probe_getoplushwbuffer.js
+  M tools/frida/trace_preview_delivery.js
+  M tools/observability/campaign/validate_modes.sh
+- Untracked state/evidence/plan files under .omo/evidence/v15-camera-build, .omo/plans, .omo/start-work, .omo/boulder.json, and two campaign condition files.
+- The requested integration-ledger.txt did not exist at baseline.
+
+Baseline root git diff --stat before this artifact:
+- tools/frida/hook_eisv2_ports.js                |  6 +++--
+- tools/frida/probe_getoplushwbuffer.js          | 10 ++++---
+- tools/frida/trace_preview_delivery.js          | 11 +++++---
+- tools/observability/campaign/validate_modes.sh | 36 +++++++++++++++++++++-----
+- 4 files changed, 46 insertions(+), 17 deletions(-)
+
+Baseline nested source status before this artifact:
+- android_hardware_oplus:
+  M oplus-fwk/src/com/oplus/osense/OsenseResEventClient.java
+  untracked .omc state files
+- android_hardware_oplus diff --stat:
+  oplus-fwk/src/com/oplus/osense/OsenseResEventClient.java | 16 ++++++++++++++--
+  1 file changed, 14 insertions(+), 2 deletions(-)
+- android_device_oneplus_infiniti:
+  M extract-files.py
+  untracked .omc state files
+- android_device_oneplus_infiniti diff --stat:
+  extract-files.py | 8 ++++++++
+  1 file changed, 8 insertions(+)
+- android_frameworks_av:
+  untracked .omc state files only; no tracked source diff.
+- android_frameworks_base:
+  no status/diff output in this baseline command.
+- vendor_oplus_camera:
+  untracked .omc state files only; no tracked source diff.
+
+Current overlay evidence before this artifact:
+- .omo/evidence/v15-camera-build/overlay-promotion-audit.txt status: BLOCKED.
+- OPEN row:
+  v1.4-launch-capture-smoke from infiniti-camera-port/ITERATION-LOG.md remains OPEN.
+- Todo 13 gate in overlay-promotion-audit.txt:
+  BLOCKED because no full build or flash is allowed while overlay ledger rows are OPEN.
+
+Current source/blob blockers before this artifact:
+- .omo/evidence/v15-camera-build/source-sync-audit.txt status: PARTIAL.
+- .omo/evidence/v15-camera-build/blob-sync-audit.txt status: BLOCKED.
+- Missing expected local repo:
+  infiniti-camera-port/repos/proprietary_vendor_oneplus_infiniti
+- Missing generated split camera payload:
+  vendor/oplus/proprietary_vendor_oplus_camera-sm8850 or equivalent local generated path.
+
+3. Overlay row statuses and Todo 13 gate
+
+Overlay/runtime iteration ledger:
+- v1.4-launch-capture-smoke: OPEN.
+  Source: .omo/evidence/v15-camera-build/overlay-promotion-audit.txt.
+  Classification: BLOCKER.
+  Required closure: PROMOTED or REVERTED before Todo 13.
+- Todo 8 Osense source fix: PROMOTED_TO_SOURCE.
+  Owner/evidence: Todo 8 artifacts listed above.
+  Retirement/escalation gate: native EDR/SF work only after rebuilt v1.5 scalar/BLAST replay fails with evidence.
+- Todo 9 libBasicTonePhoto source fixup: PROMOTED_TO_SOURCE.
+  Owner/evidence: Todo 9 artifacts listed above.
+  Retirement gate: byte-level generated blob proof plus post-build P010/BasicTone replay.
+- Todo 9 libapsfixup: KEPT-INTERIM.
+  Owner/evidence: .omo/evidence/v15-camera-build/shim-retirement-ledger.txt.
+  Root hypothesis: APS/P010 descriptor and geometry contract remains unproven; BasicTone saveOutImg is downstream of that unstable boundary.
+  Retirement gate: no-shim replay proves descriptor/plane tuple, pitch invariants, valid ArcSoft IO, and no BasicTone tombstone.
+- Todo 10 frameworks/av Depth-2: no runtime/source row promoted.
+  Status: NO_SOURCE_CHANGE_AUTHORIZED.
+  Gate: clean hook-firing denominator with mutation evidence required.
+- Todo 11 size props: no runtime/source row promoted.
+  Status: QUARANTINED_NO_SOURCE_CHANGE.
+  Gate: live device-side setter attribution required before any source or overlay use.
+
+Todo 13 decision:
+- BLOCKED.
+- Reasons:
+  1. OPEN overlay row v1.4-launch-capture-smoke remains unresolved.
+  2. proprietary_vendor_oneplus_infiniti is missing locally.
+  3. generated split Oplus camera payload is absent locally.
+- This ledger does not allow Todo 13.
+
+4. Automated verification
+
+The exact required commands were run after writing this artifact. Results are recorded here as command/result summaries; full command output remains reproducible from the commands.
+
+Command:
+timeout 20s git diff --check || true
+Result:
+PASS. No output; command exited through the true wrapper with status 0.
+
+Command:
+timeout 20s git status --short --untracked-files=all || true
+Result:
+PASS_WITH_DIRTY_WORKTREE_EXPECTED. Output includes the pre-existing modified tooling files, many untracked .omo evidence files, the two campaign condition files, and this new artifact:
+?? .omo/evidence/v15-camera-build/integration-ledger.txt
+
+Command:
+timeout 20s rg -n "OPEN|MotionPhoto|725bd52|oplus-camera-stubs" .omo/evidence/v15-camera-build infiniti-camera-port docs || true
+Result:
+PASS_WITH_CLASSIFIED_HITS. Hits are expected and classified:
+- BLOCKER: OPEN overlay row v1.4-launch-capture-smoke in overlay-promotion-audit.txt, todo2-ledger-entry.json, and this artifact.
+- SCOPED/REFERENCE: MotionPhoto and 725bd52 hits are scope exclusions or reference-only notes; they are not promoted by this ledger.
+- HARD-EXCLUDED VECTOR: oplus-camera-stubs hits are historical/reference or explicit v1.5 hard-exclude lines; they are not used as implementation evidence.
+- INCIDENTAL TOKEN HITS: many OPEN hits under infiniti-camera-port/repos/android_frameworks_base are ordinary Android constants, tests, comments, or resources such as MODE_OPENING, TRANSIT_OPEN, posture OPENED, and UI event names. They are not overlay rows and do not close or unblock Todo 13.
+
+Command:
+timeout 20s rg -n "PROMOTED|REVERTED|KEPT-INTERIM|OPEN|root hypothesis|retirement" .omo/evidence/v15-camera-build || true
+Result:
+PASS_WITH_BLOCKER. Hits confirm Todo 8/Todo 9 promoted or kept-interim decisions and also confirm the OPEN overlay blocker. Because OPEN is present, Todo 13 remains blocked.
+
+Command:
+timeout 20s test -s .omo/evidence/v15-camera-build/integration-ledger.txt && echo PASS || echo FAIL
+Result:
+PASS.
+
+5. Manual-QA channel
+
+Channel:
+- CLI/data surface.
+
+Exact invocation:
+timeout 20s rg -n "OPEN|MotionPhoto|725bd52|oplus-camera-stubs" .omo/evidence/v15-camera-build infiniti-camera-port docs || true
+
+Result:
+- PASS_WITH_CLASSIFIED_HITS.
+
+Classification:
+- OPEN overlay hits are blockers, not successes.
+- OPEN framework/test/resource token hits are incidental and not overlay closure evidence.
+- MotionPhoto hits are scoped reference/out-of-scope hits.
+- 725bd52 hits are scoped reference/out-of-scope hits.
+- oplus-camera-stubs hits are hard-excluded v1.5 implementation-vector hits or historical/reference evidence.
+
+6. Adversarial classes
+
+- dirty_worktree: triggered and recorded from baseline git status plus nested repo status. Existing dirty/untracked changes were preserved and not reverted.
+- stale_state: addressed by current timestamp and current plan hash recorded above.
+- misleading_success_output: triggered and handled by classifying grep hits; non-empty grep output is not treated as success by itself.
+- repeated_interruptions: addressed by exact replay commands and artifact pointers.
+- scope_creep: addressed by selected-file list and explicit out-of-scope lock.
+- hung_commands: partially covered by required timeout wrappers.
+- malformed_input: not applicable; no input parser/schema changed.
+- prompt_injection: not applicable beyond treating docs/reference clones as evidence only.
+- cancel_resume: not applicable; no resumable runtime flow launched.
+- flaky_tests: not applicable; deterministic CLI/data checks only.
+
+7. Cleanup receipt
+
+- Edited files in this pass:
+  .omo/evidence/v15-camera-build/integration-ledger.txt only.
+- Files explicitly not edited:
+  .omo/plans/v15-camera-build.md
+  .omo/start-work/ledger.jsonl
+  production source files
+- No processes left running by this pass.
+- No device/app state modified.
+- No permissions, props, persist props, partitions, overlays, temp dirs, tmux sessions, browser contexts, ports, containers, or build outputs modified by this pass.
+
+Risks and remaining blockers
+- Todo 13 remains blocked by the OPEN overlay row.
+- Todo 13 remains blocked by missing local proprietary_vendor_oneplus_infiniti and missing generated split camera payload.
+- Todo 8 and Todo 9 source fixes require v1.5 build/deploy/final QA before runtime success can be claimed.
+- libapsfixup remains KEPT-INTERIM and must not be removed until the recorded no-shim gates pass.
+- Frameworks/av Depth-2 authoring remains blocked until a clean runtime denominator proves hook firing and mutation evidence.

@@ -1,0 +1,43 @@
+Todo 4 gate decision review
+Generated: 2026-06-17
+Scope: evidence-only review; no source, plan checkbox, ledger, or device-state edits.
+
+VERDICT: Todo 4 must remain unchecked.
+May mark complete now: false.
+Recommended next safe plan action: amend/quarantine Todo 4 evidence state rather than check it. Treat TEXT as grounded for later EDR/preview work, quarantine SCAN DOCS until the scanner package/path or an explicitly redefined installed provider/server denominator exists, and leave P010/video8k validation to their own lanes. Do not run a broad full campaign solely to force Todo 4 closure.
+
+Plan gate checked
+- .omo/plans/v15-camera-build.md Todo 4 acceptance requires reference/validate_modes/report.txt to show K/K for photo text scandoc p010 video8k, text/scandoc campaign verdicts that are stable or explicitly blocked, and screenshots/action logs proving correct foreground.
+- Dependency matrix says Todo 4 depends on Todo 1 and Todo 3 and blocks Todo 8 and Todo 15. It can parallelize with Todos 5, 6, and 7, but its own device capture is not parallel.
+
+Primary evidence
+- reference/validate_modes/report.txt: photo 3/3 GRADUATE, text 3/3 GRADUATE, scandoc 0/3 FLAKY, p010 0/3 FLAKY. The required K/K gate for all five requested modes is not met. video8k has only an incomplete/interrupted partial artifact set and no completed K/K report row.
+- reference/validate_modes/photo/run1..run3/verdict.txt: all PASS with com.oplus.camera foreground and screenshots around 2.9 MB.
+- reference/validate_modes/text/run1..run3/verdict.txt: all PASS with goto_main_mode TEXT OK, com.oplus.camera foreground, and screenshots around 3.0 MB.
+- reference/validate_modes/scandoc/run1..run3/verdict.txt: all FAIL with missing_marker=tap_desc 'SCAN DOCS', nav_failed, and foreground_mismatch=com.coloros.ocrscanner while actual foreground remains com.oplus.camera.
+- reference/validate_modes/scandoc/run1..run3/action.log: each reaches MORE, then tap_desc 'SCAN DOCS' -> NOT FOUND and enter_more_item 'SCAN DOCS' FAILED.
+- .omo/evidence/v15-camera-build/scandoc-failed-ui.xml: More grid exposes NIGHT, HI-RES, PANO, PRO VIDEO, SLO-MO, TIME-LAPSE, LONG EXPOSURE, DUAL-VIEW VIDEO, and TILT-SHIFT; it does not expose SCAN DOCS.
+- reference/campaign/text-edr-preview/verdict.json and .omo/evidence/v15-camera-build/text-edr-preview-parse.txt: 3-run stable TEXT verdict; reference/campaign/text-edr-preview/run*/ab/ui_action.log shows goto_main_mode TEXT OK; scene audits show com.oplus.camera foreground.
+- reference/campaign/scandoc/verdict.json and .omo/evidence/v15-camera-build/scandoc-parse.txt: parser reports stable 3-run scandoc rows, but reference/campaign/scandoc/run*/ab/ui_action.log disproves intended SCAN DOCS reach because every run fails to find SCAN DOCS and stays in com.oplus.camera MORE.
+- .omo/evidence/v15-camera-build/text-scandoc-grounding.txt: current corrected validator evidence supersedes stale pre-fix all-zero evidence, confirms TEXT grounding, and marks SCAN DOCS blocked because the item/package path is absent.
+- .omo/evidence/v15-camera-build/todo4-ledger-entry.json: records status NEEDS_FIX, text_grounding PASS, scandoc_grounding BLOCKED, mode_gate PARTIAL, and intentional interruption of the broad rerun after sufficient evidence.
+- .omo/evidence/v15-camera-build/source-sync-audit.txt: proprietary_vendor_oneplus_infiniti is missing locally and is a blocker row.
+- .omo/evidence/v15-camera-build/blob-sync-audit.txt: proprietary_vendor_oneplus_infiniti and generated split camera payload vendor/oplus/proprietary_vendor_oplus_camera-sm8850 are absent locally. This supports treating missing scanner/blob state as a blocker, not as a passed SCAN DOCS denominator.
+
+Adversarial classes
+- stale_state: triggered. Reject the stale pre-fix all-zero validate_modes result because text-scandoc-grounding records that the old root wrapper failed on this root-ADB device. Use the later corrected artifacts: photo/text graduate; scandoc and p010 fail.
+- misleading_success_output: triggered. Reject parser-stable SCAN DOCS as a Todo 4 success because UI action logs and scene audits prove the intended SCAN DOCS app/provider foreground was not reached.
+- dirty_worktree: triggered. git status shows modified tools/observability/campaign/validate_modes.sh plus untracked .omo evidence and condition env files. This review did not edit those paths; it only records the gate decision.
+- repeated_interruptions: triggered but not fatal to this decision. The broad validate_modes rerun was intentionally interrupted after enough negative evidence; the partial artifacts are sufficient to prove Todo 4 cannot be complete, but insufficient to prove the full K/K gate.
+- flaky_tests: triggered. The K/K gate is not satisfied for scandoc or p010, and video8k is incomplete.
+- prompt_injection: N/A for execution; docs/refs/audit notes were treated as evidence only.
+- hung_commands: N/A in this review; no runtime command was left running.
+- malformed_input: N/A.
+- cancel-resume: N/A.
+
+Decision
+- Todo 4 cannot be checked complete now.
+- The safest plan action is to keep Todo 4 unchecked and amend/quarantine its state: record TEXT as usable partial grounding, SCAN DOCS as blocked by absent UI/package/blob path, P010 as Todo 6-owned, and video8k as Todo 7-owned.
+- Do not spend device time on a broad rerun just to repeat known blockers. Rerun only a targeted SCAN DOCS reachability check after restoring the scanner package/path or redefining the condition to a real installed denominator.
+
+cleanup: none

@@ -1,0 +1,6 @@
+== validate_modes K=1 modes=[text scandoc] @ Tue Jun 16 19:08:40 MDT 2026 ==
+  text         1/1  GRADUATE
+  scandoc      0/1  FLAKY
+----
+GATE: HOLD — fix/quarantine FLAKY modes before baseline capture.
+report: /home/vivy/oplus-final/reference/validate_modes/report.txt

@@ -1,0 +1,6 @@
+PASS OsenseResEventClient.startBackgroundRunning(Context,int,BgRunningCallback)
+PASS OsenseResEventClient.stopBackgroundRunning(Context,int)
+PASS OsenseResEventClient.unregisterEventCallback(OsenseEventCallback)
+PASS OplusEdrUtils.getBlastSurfaceControl delegates to SurfaceView.getSurfaceControl
+PASS OplusEdrUtils.setEdrSdrRatio calls Transaction.setExtendedRangeBrightness
+RESULT PASS

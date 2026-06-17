@@ -1,0 +1,54 @@
+v15 Todo10 frameworks/av Depth-2 fix decision
+Generated: 2026-06-16T21:15:57-06:00
+Status: NO_SOURCE_CHANGE_AUTHORIZED
+
+Result
+- No android_frameworks_av production source change was made for Todo10.
+- The evidence packet is complete enough to block unsafe authoring, not complete enough to implement Depth-2 calls.
+
+Why no fix was authored
+- Depth-1 is already present in source and runtime: CameraService delegates onTransact into CameraServiceExtFactory, and libcsextimpl.so is mapped in cameraserver during the direct Video8K/R4 run.
+- The relevant Depth-2 symbols are known from OOS notes, and LOS insertion candidates can be mapped.
+- The missing proof is live input/output mutation under a clean denominator. The direct run did not reach 8K op_mode 0x80a9, did not include a 7680x4320 stream, and did not call beforeConfigureStreamsLocked or getExtensionOperatingMode despite probes arming.
+- SCAN DOCS cannot be used as a provider denominator yet because Todo4 quarantined it: no scanner package/UI route exists on the attached device state.
+- processPreview/additional preview native handlers are explicitly out of scope for v1.5, so an unfired processPreview candidate cannot be used to pull MotionPhoto-style work into Todo10.
+
+Implementation lock
+- Selected implementation: none.
+- Files intentionally not modified:
+  - infiniti-camera-port/repos/android_frameworks_av/services/camera/libcameraservice/ext/CameraServiceExtFactory.cpp
+  - infiniti-camera-port/repos/android_frameworks_av/services/camera/libcameraservice/CameraService.cpp
+  - infiniti-camera-port/repos/android_frameworks_av/services/camera/libcameraservice/device3/Camera3Device.cpp
+  - infiniti-camera-port/repos/android_frameworks_av/services/camera/libcameraservice/device3/Camera3OutputUtils.cpp
+  - infiniti-camera-port/repos/android_frameworks_av/services/camera/libcameraservice/device3/Camera3OutputUtils.h
+
+Required next gate before future Depth-2 authoring
+1. Stabilize app route enough to enter the intended Video8K path without falling back home.
+2. Capture a clean direct run where provider configure_streams reaches op_mode 0x80a9 and the expected 8K stream topology.
+3. Show one selected Depth-2 server hook actually fires, with before/after mutation evidence:
+   - beforeConfigureStreamsLocked: StreamSet or provider stream mutation.
+   - getExtensionOperatingMode: vendor-tag-derived op mode override.
+   - beforeMetadataSendToApp: concrete metadata tag before/after.
+   - processPreview: preview-frame delivery mutation, only if brought back into scope after v1.5.
+4. Only then add typed wrapper calls in frameworks/av, one hook at a time, with build and post-change replay evidence.
+
+Verification evidence
+- .omo/evidence/v15-camera-build/frameworks-av-depth2-map.txt records the hook map, runtime blocker, adversarial checks, and cleanup receipt.
+- infiniti-camera-port/repos/android_frameworks_av status has only .omc untracked state artifacts; no tracked frameworks/av source diff exists.
+- The process scan found no lingering validate_modes, drive_cycle, run_condition, app_probe_capture, frida -U, logcat, mka, soong_ui, or broad reference rg process.
+
+Adversarial checks
+- stale_state: PASS. This decision was made after rereading current plan, ledger, source anchors, docs, and runtime logs.
+- dirty_worktree: PASS_WITH_SCOPE. The no-source-change decision leaves frameworks/av tracked files untouched.
+- misleading_success_output: PASS. The artifact does not claim a fix, build, or runtime pass.
+- hung_commands: PASS. No long-running capture/build process remains.
+- repeated_interruptions: PASS. Decision is durable and replayable from listed artifacts.
+- flaky_tests: not applicable. No runtime test was launched in this pass.
+- malformed_input: not applicable. No parser/input schema changed.
+- prompt_injection: not applicable. Local docs are evidence only.
+- cancel_resume: not applicable. No resumable runtime operation was started.
+
+Cleanup
+- No runtime resources created.
+- No generated temp files retained.
+- No device state, partitions, or persist props touched.

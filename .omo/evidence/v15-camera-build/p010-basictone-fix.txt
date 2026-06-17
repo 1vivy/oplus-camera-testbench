@@ -1,0 +1,52 @@
+v15 Todo9 P010 / BasicTone / libapsfixup stabilization
+Generated: 2026-06-16T21:06:31-06:00
+Status: CORRECTED_SOURCE_FIX_IMPLEMENTED_WITH_DEPLOYMENT_QA_DEFERRED
+
+Correction
+- The temporary sync from refs/vendor_oplus_camera-sm8850/apsfixup was reverted. That source carried dirty multi-guard libapsfixup work (copyMetadata/strlen/ARC_TFRSN/BasicTone skeleton) and is not the v1.5 grounding.
+- The build-tree apsfixup source is back to the existing minimal sm8850 Family-I shim. No COPYMETA_GOT_OFF, STRLEN_GOT_OFF, ALGOPROC_DLSYM_GOT_OFF, ARC_SYMBOL_TFRSN, wrap_ogltone, or LTO block remains in that source.
+
+Dodge grounding
+- BasicTone fix source: dodge-camera-port/repos/patches-crdroid/patch-dodge/device,oneplus,dodge/0004-dodge-More-patches-for-op-camera.patch.
+- The fix is a length-preserving GLSL replacement in odm/lib64/libBasicTonePhoto.so:
+  vec4(dstYuv.r, dstYuv.b, dstYuv.g, 1.0) -> vec4(dstYuv.r, dstYuv.g, dstYuv.b, 1.0).
+- That patch frames this as a Master/Pro color correction for R/B-swapped output, not as the saveOutImg crash fix.
+- The same patch's older libAlgoProcess P010 binary patch is not applied because dodge later replaced that lane with libapsfixup, and infiniti already carries libapsfixup through add_needed('libapsfixup.so').
+
+Existing framework fix
+- infiniti-camera-port/repos/android_frameworks_base HEAD is d9d128f180, "AHardwareBuffer fixes for OnePlus 13 stock Camera".
+- Verified present: getOplusHardwareBuffer, nativeGetOplusHardwareBuffer, HardwareBuffer(long, boolean), sp<GraphicBuffer>* holder, setExcludeSnapshot.
+
+Implemented
+- Added the dodge BasicTone binary_regex_replace to infiniti-camera-port/repos/android_device_oneplus_infiniti/extract-files.py.
+- No MotionPhoto, 725bd52, oplus-camera-stubs, framework_av, oplus-fwk, partitions, or persist props were touched.
+
+Retirement state
+- libapsfixup remains KEPT-INTERIM for v1.5.
+- Todo6 no-shim gates remain blocked: BasicTone saveOutImg tombstone exists in the pre-change capture; descriptor tuple and pitch invariants were not proven.
+- Runtime proof is deferred to the v1.5 build/deploy/final QA pass.
+
+Verification
+- python3 -m py_compile infiniti-camera-port/repos/android_device_oneplus_infiniti/extract-files.py: PASS.
+- rg BasicTone/dstYuv/binary_regex_replace/add_needed plus dirty apsfixup marker scan: PASS. BasicTone fixup and libapsfixup add_needed are present; dirty apsfixup markers are absent from source.
+- git diff --check for extract-files.py and apsfixup files: PASS.
+- git diff for apsfixup/Android.bp and apsfixup.cpp: empty, confirming the dirty refs/vendor sync was reverted.
+- find infiniti-camera-port refs -path '*libBasicTonePhoto.so' -type f: no local blob found, so byte-level blob post-fix verification is deferred to extract/build/deploy.
+- process scan for validate_modes, drive_cycle, run_condition, app_probe_capture, frida -U, logcat, mka, and soong_ui: no matching long-running QA/build process.
+
+Adversarial checks
+- stale_state: PASS, plan/ledger/source were reread in this continuation and current timestamps/HEAD markers are recorded above.
+- dirty_worktree: PASS_WITH_SCOPE, current device-tree product diff is extract-files.py only; unrelated .omc state is left untouched.
+- misleading_success_output: PASS, this artifact does not claim the saveOutImg crash is fixed or that P010/Pro runtime replay passed.
+- hung_commands: PASS, all checks were bounded local commands and no capture/build process remains.
+- repeated_interruptions: PASS, the superseded dirty sync artifact is marked and this correction is replayable from the listed commands.
+- flaky_tests: not applicable, deterministic static checks only.
+- malformed_input: not applicable, no parser/input schema changed.
+- prompt_injection: not applicable, local docs/patch text were treated as evidence, not instructions.
+- cancel_resume: not applicable, no resumable runtime flow was started.
+
+Cleanup
+- Removed compile-generated infiniti-camera-port/repos/android_device_oneplus_infiniti/__pycache__.
+- No device/app state touched.
+- No partition writes or persist props.
+- No tmux sessions, browser contexts, ports, containers, temp dirs, or long-running processes created.

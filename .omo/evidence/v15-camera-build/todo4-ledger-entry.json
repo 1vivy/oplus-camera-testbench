@@ -1,0 +1,95 @@
+{
+  "task_id": 4,
+  "title": "Validate UI mode reach and capture PHOTO -> TEXT / SCAN DOCS grounding",
+  "timestamp": "2026-06-16T19:22:00-06:00",
+  "status": "NEEDS_FIX",
+  "device": {
+    "adb_get_state": "device",
+    "adb_shell_uid": "0",
+    "product_device": "OP611FL1",
+    "fingerprint": "OnePlus/CPH2745IN/OP611FL1:16/BP2A.250605.015/B.R4T3.4af8531-273ed27-276d247:user/release-keys",
+    "oplusrom": "V16.1.0",
+    "lineage": "23.2"
+  },
+  "commands": [
+    {
+      "command": "bash -n tools/observability/campaign/validate_modes.sh",
+      "exit_code": 0,
+      "summary": "syntax check passed after root-ADB helper patch"
+    },
+    {
+      "command": "timeout 240s tools/observability/campaign/validate_modes.sh 1 text scandoc",
+      "exit_code": 0,
+      "summary": "text 1/1 GRADUATE; scandoc 0/1 FLAKY",
+      "artifacts": [
+        ".omo/evidence/v15-camera-build/validate-modes-smoke.txt",
+        "reference/validate_modes/text/run1/",
+        "reference/validate_modes/scandoc/run1/"
+      ]
+    },
+    {
+      "command": "timeout 1500s tools/observability/campaign/validate_modes.sh 3 photo text scandoc p010 video8k",
+      "exit_code": 143,
+      "summary": "interrupted intentionally after confirming photo/text 3/3, scandoc 0/3, p010 0/3; video8k not needed for Todo 4 status",
+      "artifacts": [
+        ".omo/evidence/v15-camera-build/validate-modes-fixed-full.txt",
+        "reference/validate_modes/report.txt",
+        "reference/validate_modes/photo/",
+        "reference/validate_modes/text/",
+        "reference/validate_modes/scandoc/",
+        "reference/validate_modes/p010/"
+      ]
+    },
+    {
+      "command": "tools/observability/campaign/parse_condition.py reference/campaign/text-edr-preview",
+      "exit_code": 0,
+      "summary": "text-edr-preview verdict stable across 3 runs",
+      "artifacts": [
+        "reference/campaign/text-edr-preview/verdict.json",
+        ".omo/evidence/v15-camera-build/text-edr-preview-parse.txt"
+      ]
+    },
+    {
+      "command": "tools/observability/campaign/parse_condition.py reference/campaign/scandoc",
+      "exit_code": 0,
+      "summary": "scandoc parser verdict stable across 3 runs, but rejected as SCAN DOCS grounding because UI action logs show navigation failure",
+      "artifacts": [
+        "reference/campaign/scandoc/verdict.json",
+        ".omo/evidence/v15-camera-build/scandoc-parse.txt"
+      ]
+    }
+  ],
+  "acceptance": {
+    "todo4_plan_checkbox": "UNCHECKED",
+    "text_grounding": "PASS: validate_modes text 3/3 and text-edr-preview stable verdict/app probes exist",
+    "scandoc_grounding": "BLOCKED: SCAN DOCS item/package absent; More-grid navigation fails and foreground remains com.oplus.camera",
+    "mode_gate": "PARTIAL: photo/text graduate; scandoc quarantined; p010 remains for later P010 lane; video8k rerun intentionally stopped"
+  },
+  "artifacts": [
+    ".omo/evidence/v15-camera-build/text-scandoc-grounding.txt",
+    ".omo/evidence/v15-camera-build/scandoc-failed-ui.xml",
+    ".omo/evidence/v15-camera-build/scandoc-failed-screen.png",
+    "reference/validate_modes/report.txt",
+    "reference/campaign/text-edr-preview/",
+    "reference/campaign/scandoc/"
+  ],
+  "adversarial_classes": {
+    "flaky_tests": "triggered; root-ADB patch fixes global false flake for photo/text, but scandoc remains flaky/absent",
+    "stale_state": "fresh 2026-06-16 19:11-19:21 validation artifacts supersede earlier all-zero report",
+    "misleading_success_output": "parser stability rejected as scandoc success because UI logs show SCAN DOCS nav failure",
+    "hung_commands": "full rerun was interrupted deliberately after sufficient evidence; no capture processes remain",
+    "dirty_worktree": "source edit limited to validate_modes.sh plus evidence/reference artifacts",
+    "repeated_interruptions": "validate_modes now preserves per-run diagnostics for resume",
+    "malformed_input": "not applicable",
+    "prompt_injection": "not applicable"
+  },
+  "cleanup": {
+    "host_capture_processes": "none remaining for validate_modes, drive_cycle, run_condition, app_probe_capture, frida -U, or logcat",
+    "device_cleanup": "com.oplus.camera and com.coloros.ocrscanner force-stopped best-effort",
+    "campaign_lock": "no active lock observed"
+  },
+  "risks": [
+    "SCAN DOCS cannot be used as a denominator until the scanner package/path is restored or the condition is redefined.",
+    "P010 failed during the interrupted validator rerun, but P010 is not resolved in Todo 4 and remains for the dedicated P010 lane."
+  ]
+}

@@ -1,0 +1,10 @@
+F1 premature completion correction
+Generated: 2026-06-16 local MDT
+
+An out-of-scope subagent marked F1. Plan compliance audit complete while Todo6 was still the first real incomplete deliverable.
+That completion is superseded and the plan checkbox has been reset to unchecked.
+
+Current correction:
+- Treat the previous F1 task-completed ledger line as false-positive/out-of-order.
+- Continue from the first unchecked top-level task after Todo6 evidence is recorded.
+- Do not use stale stop-hook text as source of truth when it disagrees with the plan file.

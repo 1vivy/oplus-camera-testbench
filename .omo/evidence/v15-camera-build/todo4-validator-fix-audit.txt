@@ -1,0 +1,68 @@
+Todo 4 validate_modes root-ADB fix audit
+Generated: 2026-06-16 19:31:34 -0600 MDT
+Scope: bounded audit only; no new validate_modes campaign or smoke run was launched.
+
+Claim
+- The validate_modes root-ADB patch is correct for the currently attached device context: adb shell already runs as uid 0, while su is inaccessible. The previous hardcoded adb shell su -c wrapper would therefore fail before the UI driver could produce meaningful mode evidence.
+- The existing post-patch artifacts are fresh enough for the requested targeted audit: validate_modes.sh was modified at 2026-06-16 19:08:33 -0600; smoke evidence was written at 2026-06-16 19:10:04 -0600; targeted full evidence and report were written at 2026-06-16 19:20:43 -0600.
+- The old all-zero style mode report is a root-wrapper false failure in this root-ADB/no-su environment. Current per-run artifacts prove the patched validator can run the driver and emit diagnostics: photo and text reach 3/3, while SCAN DOCS fails for real navigation/foreground reasons.
+
+Required command evidence
+- bash -n tools/observability/campaign/validate_modes.sh
+  Result: exit 0; no syntax output.
+- git diff -- tools/observability/campaign/validate_modes.sh
+  Result: the patch adds ADB_UID detection via adb shell id -u, introduces adb_as_root(), uses plain adb shell when ADB_UID is 0, preserves adb shell su -c fallback otherwise, and writes per-run diagnostics under reference/validate_modes/<mode>/run<k>/.
+- timeout 30s adb shell 'id; command -v su || true; su -c id 2>&1 || true' | tr -d '\r'
+  Result:
+  uid=0(root) gid=0(root) groups=0(root),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs) context=u:r:su:s0
+  /system/bin/sh: su: inaccessible or not found
+- ps -eo pid,ppid,etime,cmd | rg 'validate_modes|drive_cycle|run_condition|app_probe_capture|frida -U|logcat' || true
+  Result: only the checking shell and rg process matched; no long-lived capture, drive, frida, or logcat process was present.
+
+Source/worktree scope
+- Tracked source diff: tools/observability/campaign/validate_modes.sh only.
+- Evidence additions under .omo/evidence/v15-camera-build/ include this audit and todo4-validator-fix-ledger.json.
+- Pre-existing/unrelated untracked files visible during audit: tools/observability/campaign/conditions/p010-basictone.env and tools/observability/campaign/conditions/text-edr-preview.env.
+- No source files, plan checkboxes, or .omo/start-work/ledger.jsonl were edited by this audit.
+
+Artifact inspection
+- .omo/evidence/v15-camera-build/validate-modes-smoke.txt, mtime 2026-06-16 19:10:04 -0600, records:
+  == validate_modes K=1 modes=[text scandoc] @ Tue Jun 16 19:08:40 MDT 2026 ==
+  text 1/1 GRADUATE
+  scandoc 0/1 FLAKY
+- .omo/evidence/v15-camera-build/validate-modes-fixed-full.txt, mtime 2026-06-16 19:20:43 -0600, records:
+  == validate_modes K=3 modes=[photo text scandoc p010 video8k] @ Tue Jun 16 19:11:04 MDT 2026 ==
+  photo 3/3 GRADUATE
+  text 3/3 GRADUATE
+  scandoc 0/3 FLAKY
+  p010 0/3 FLAKY
+
+Per-run verdicts
+- reference/validate_modes/photo/run1/verdict.txt, mtime 2026-06-16 19:11:32 -0600: PASS; foreground com.oplus.camera/com.oplus.camera.Camera; screenshot_bytes=2927833.
+- reference/validate_modes/photo/run2/verdict.txt, mtime 2026-06-16 19:12:01 -0600: PASS; foreground com.oplus.camera/com.oplus.camera.Camera; screenshot_bytes=2929164.
+- reference/validate_modes/photo/run3/verdict.txt, mtime 2026-06-16 19:12:29 -0600: PASS; foreground com.oplus.camera/com.oplus.camera.Camera; screenshot_bytes=2914647.
+- reference/validate_modes/text/run1/verdict.txt, mtime 2026-06-16 19:13:06 -0600: PASS; foreground com.oplus.camera/com.oplus.camera.Camera; screenshot_bytes=3053121.
+- reference/validate_modes/text/run2/verdict.txt, mtime 2026-06-16 19:13:44 -0600: PASS; foreground com.oplus.camera/com.oplus.camera.Camera; screenshot_bytes=3039426.
+- reference/validate_modes/text/run3/verdict.txt, mtime 2026-06-16 19:14:21 -0600: PASS; foreground com.oplus.camera/com.oplus.camera.Camera; screenshot_bytes=3058414.
+- reference/validate_modes/scandoc/run1/verdict.txt, mtime 2026-06-16 19:15:07 -0600: FAIL; missing_marker=tap_desc 'SCAN DOCS' -> (; nav_failed; foreground_mismatch=com.coloros.ocrscanner; actual foreground com.oplus.camera/com.oplus.camera.Camera; screenshot_bytes=2052291.
+- reference/validate_modes/scandoc/run2/verdict.txt, mtime 2026-06-16 19:15:55 -0600: FAIL; missing_marker=tap_desc 'SCAN DOCS' -> (; nav_failed; foreground_mismatch=com.coloros.ocrscanner; actual foreground com.oplus.camera/com.oplus.camera.Camera; screenshot_bytes=2056394.
+- reference/validate_modes/scandoc/run3/verdict.txt, mtime 2026-06-16 19:16:41 -0600: FAIL; missing_marker=tap_desc 'SCAN DOCS' -> (; nav_failed; foreground_mismatch=com.coloros.ocrscanner; actual foreground com.oplus.camera/com.oplus.camera.Camera; screenshot_bytes=2068209.
+
+Adversarial checks
+- stale_state: Fresh enough. Evidence mtimes postdate the validator source mtime and are from the same 2026-06-16 validation window. The reference/validate_modes per-run directories were overwritten by the later K=3 run, so the smoke text is retained as summary evidence while per-run smoke files are not separately preserved.
+- dirty_worktree: The tracked source diff is limited to validate_modes.sh. The .omo/evidence/v15-camera-build directory is untracked evidence. Two unrelated untracked condition env files are present and were not inspected as source changes for this claim.
+- misleading_success_output: Not present. The root context proves the prior wrapper failure mode, while SCAN DOCS remains a true targeted failure with explicit missing-marker/nav/foreground diagnostics.
+- hung_commands: No capture process remains; the process scan matched only the audit command's shell and rg.
+- repeated_interruptions: Per-run diagnostics survive partial/interrupted campaigns because each run has action.log, drive stdout/stderr, focus.txt, screenshot_size.txt, and verdict.txt. The video8k directory shows a partial run2 with drive stdout/stderr only, but the requested photo/text/scandoc evidence has complete run1-run3 diagnostics.
+- flaky_tests: Observed reach rates: photo 3/3, text 3/3, scandoc 0/3. Existing summary also records p010 0/3; video8k was not included in the final report before interruption and was outside this targeted audit.
+- malformed_input: N/A; no malformed input was supplied.
+- prompt_injection: N/A; no untrusted prompt-bearing artifact altered the requested commands.
+- cancel_resume: N/A; no active campaign was resumed or cancelled by this audit.
+
+Cleanup
+- No smoke run was launched, so no camera force-stop cleanup was required.
+- No broad campaign was launched.
+- No capture, drive, frida, or logcat process remains.
+
+Stop condition
+- Required static check, diff inspection, root/no-su confirmation, existing artifact inspection, process cleanup check, audit file creation, and JSON ledger creation are complete.

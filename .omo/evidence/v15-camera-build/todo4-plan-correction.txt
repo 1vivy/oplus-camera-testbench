@@ -1,0 +1,37 @@
+Todo 4 plan correction evidence
+Generated: 2026-06-16T19:42:09-06:00
+Workspace: /home/vivy/oplus-final
+Status: READY_TO_MARK_AFTER_CORRECTED_GATE
+
+Correction
+- Todo 4 was over-scoped: it required K/K for photo, text, scandoc, p010, and video8k even though P010 and video8K have dedicated Todo 6 and Todo 7 capture lanes.
+- The corrected gate covers PHOTO/TEXT reach, TEXT EDR preview grounding, and SCAN DOCS foreground reach or explicit quarantine.
+- This avoids rerunning broad campaigns that cannot change the current SCAN DOCS package/UI absence.
+
+Verification evidence
+- reference/validate_modes/photo/run1/verdict.txt: PASS mode=photo run=1.
+- reference/validate_modes/photo/run2/verdict.txt: PASS mode=photo run=2.
+- reference/validate_modes/photo/run3/verdict.txt: PASS mode=photo run=3.
+- reference/validate_modes/text/run1/verdict.txt: PASS mode=text run=1.
+- reference/validate_modes/text/run2/verdict.txt: PASS mode=text run=2.
+- reference/validate_modes/text/run3/verdict.txt: PASS mode=text run=3.
+- reference/campaign/text-edr-preview/verdict.json parses as JSON and records text-edr-preview capture rows.
+- .omo/evidence/v15-camera-build/todo4-scandoc-audit-ledger.json parses as JSON and records status QUARANTINED_AND_SYNC_BLOCKED.
+- .omo/evidence/v15-camera-build/scandoc-package-quarantine-audit.txt records missing com.coloros.ocrscanner/com.oplus.scanner package paths and missing SCAN DOCS UI item.
+- reference/validate_modes/scandoc/run1..run3/verdict.txt each fail with missing SCAN DOCS marker and foreground mismatch; these failures are accepted only as quarantine evidence, not as SCAN DOCS success.
+
+Manual QA channel
+- Tool: bash, python3, test, ps, rg.
+- Invocation: bash -n tools/observability/campaign/validate_modes.sh && python3 -m json.tool .omo/evidence/v15-camera-build/todo4-scandoc-audit-ledger.json && test -s .omo/evidence/v15-camera-build/scandoc-package-quarantine-audit.txt.
+- Observable: PASS when validator syntax is valid, quarantine JSON parses, and quarantine audit text exists.
+
+Adversarial classes
+- stale_state: current artifacts are from the 2026-06-16 validation window and include fresh package/UI audit evidence.
+- dirty_worktree: changed only plan/evidence/ledger state for Todo 4; product code is not changed by this correction.
+- misleading_success_output: stable scandoc parser output is not treated as success because UI foreground evidence proves SCAN DOCS was not reached.
+- flaky_tests: PHOTO/TEXT are 3/3 pass; SCAN DOCS remains 0/3 and is quarantined rather than retried as pass.
+- hung_commands: no validate_modes, drive_cycle, run_condition, app_probe_capture, frida -U, or logcat process is left running.
+- repeated_interruptions: durable per-run verdicts and quarantine audit make this correction restartable.
+
+Cleanup
+- No runtime resource was spawned by the plan correction.

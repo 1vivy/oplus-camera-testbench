@@ -1,0 +1,77 @@
+{
+  "event": "todo-completed",
+  "plan": ".omo/plans/v15-camera-build.md",
+  "task_id": 3,
+  "task": "Add first-class campaign conditions for TEXT EDR/preview and BasicTone",
+  "status": "candidate",
+  "artifacts": [
+    "tools/observability/campaign/conditions/text-edr-preview.env",
+    "tools/observability/campaign/conditions/p010-basictone.env",
+    ".omo/evidence/v15-camera-build/condition-wiring.txt"
+  ],
+  "commands": [
+    "bash -n tools/observability/campaign/run_condition.sh tools/observability/campaign/app_probe_capture.sh",
+    "tools/observability/campaign/parse_condition.py --help attempted; unsupported in this repo, import-safe parser check used instead",
+    "test -f tools/frida/<probe>.js for every EXTRA_PROBES basename in the new files",
+    "schema-key/no-shell-logic audit for both new condition files",
+    "scandoc.env unchanged/provider-server audit"
+  ],
+  "adversarial_classes": [
+    {
+      "class": "malformed_input",
+      "result": "Checked campaign shell syntax, import-safe parser load, schema-key-only condition files, and parsed EXTRA_PROBES basenames."
+    },
+    {
+      "class": "stale_state",
+      "result": "Both target condition files were absent before edit; additive files only."
+    },
+    {
+      "class": "dirty_worktree",
+      "result": "Initial status showed untracked .omo/ only; final diff/status reviewed for scoped ownership."
+    },
+    {
+      "class": "misleading_success_output",
+      "result": "Each declared probe basename was verified as an existing tools/frida/*.js file."
+    },
+    {
+      "class": "flaky_tests",
+      "result": "Not applicable; Todo 3 is static condition wiring and did not run device campaign captures."
+    },
+    {
+      "class": "hung_commands",
+      "result": "Not applicable; no long-running device or adb loops were started."
+    },
+    {
+      "class": "race_conditions",
+      "result": "Not applicable; no concurrent capture session or shared device runtime was started."
+    },
+    {
+      "class": "permission_denied",
+      "result": "Not applicable; no privileged device commands or filesystem writes outside scoped files were attempted."
+    },
+    {
+      "class": "external_service",
+      "result": "Not applicable; no network service was used."
+    },
+    {
+      "class": "resource_exhaustion",
+      "result": "Not applicable; only small text artifacts and static CLI checks were used."
+    },
+    {
+      "class": "data_loss",
+      "result": "Not applicable; no destructive commands, partition writes, or persist property writes were used."
+    },
+    {
+      "class": "security_regression",
+      "result": "Not applicable; condition data files only, no executable logic changed."
+    },
+    {
+      "class": "all_other_ultraqa_classes",
+      "result": "Not applicable; this Todo 3 slice only authored static condition/evidence files and did not run a device, network, concurrency, persistence, or production path."
+    }
+  ],
+  "cleanup": "No runtime resources created. No debug leftovers.",
+  "risks": [
+    "probe_basictone.js exists and is declared, but current campaign probe routing does not list probe_basictone; script changes were out of Todo 3 scope."
+  ]
+}

@@ -1,0 +1,24 @@
+❯ python3 -m json.tool .omo/evidence/v15-camera-build/state-manifest.json >/tmp/
+v15-todo1-json.out && test -s .omo/evidence/v15-camera-build/environment-preflig
+ht.txt && rg -n "PASS|PARTIAL|BLOCKED" .omo/evidence/v15-camera-build/environmen
+t-preflight.txt >/tmp/v15-todo1-status.out && echo TODO1_MANUAL_PASS || echo TOD
+O1_MANUAL_FAIL
+TODO1_MANUAL_PASS
+
+╭─    ~/oplus-final    main ?3 ···················· ✔  18:18:48  ─╮
+╰─                                                                           ─╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

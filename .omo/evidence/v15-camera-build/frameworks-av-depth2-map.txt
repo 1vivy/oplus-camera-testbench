@@ -1,0 +1,91 @@
+v15 Todo10 frameworks/av Depth-2 evidence map
+Generated: 2026-06-16T21:15:57-06:00
+Status: MAPPED_NO_SOURCE_AUTHORING
+
+Decision
+- Do not author android_frameworks_av Depth-2 hooks in this pass.
+- Depth-1 is already present in source and runtime: CameraService::onTransact delegates to CameraServiceExtFactory::onTransact; CameraServiceExtFactory dlopens system_ext/lib64/libcsextimpl.so and resolves getExtFactoryImpl plus CameraServiceExtImpl::onTransact.
+- Runtime evidence shows libcsextimpl.so mapped and private OEM onTransact codes returning, but the clean denominator required for Depth-2 authoring was not reached: no op_mode=0x80a9, no 7680x4320 stream, and beforeConfigure/opmode probes only armed.
+- MotionPhoto/additional preview native handlers remain out of v1.5 scope.
+
+Source baseline
+- infiniti-camera-port/repos/android_frameworks_av/services/camera/libcameraservice/ext/CameraServiceExtFactory.cpp:14-15 dlopen system_ext/lib64/libcsextimpl.so.
+- CameraServiceExtFactory.cpp:23 resolves getExtFactoryImpl, lines 31-56 build the triple-deref function table, lines 59-60 resolve CameraServiceExtImpl::onTransact, lines 73-95 call the extension object.
+- infiniti-camera-port/repos/android_frameworks_av/services/camera/libcameraservice/CameraService.cpp:93 includes CameraServiceExtFactory.h; lines 4136-4141 delegate onTransact before BnCameraService.
+- ext/include/ICameraServiceExt.h and ext/ICameraServiceExt.cpp are no-op placeholders; there is no typed Depth-2 wrapper surface in source.
+
+Runtime denominator
+- .omo/evidence/v15-camera-build/8k-oemlayer-grounding.txt: Status CAPTURED_WITH_BLOCKERS, build OnePlus/CPH2745IN/OP611FL1:16/BP2A.250605.015/B.R4T3.4af8531-273ed27-276d247:user/release-keys.
+- reference/campaign/video8k/direct-20260616-203330/r4_presence_manual_post.txt: libcsextimpl.so is mapped in cameraserver.
+- reference/campaign/video8k/direct-20260616-203330/server_probes/r4_ext_server.log: hooks armed onTransact/opmode/beforeConfigure/processPreview/beforeMeta/addRemovePkg; 10015, 10002, 10006, 10017, and 10018 return 0.
+- reference/campaign/video8k/direct-20260616-203330/server_probes/hook_before_configure_streams.log: resolved and armed only; no call body observed.
+- reference/campaign/video8k/direct-20260616-203330/server_probes/probe_get_extension_opmode.log: resolved and armed only; no call body observed.
+- reference/campaign/video8k/direct-20260616-203330/provider_probes/hook_configure_streams.log: observed op_mode 0x8001, 0x0, and 0x830b; no 0x80a9 and no 7680x4320 stream.
+- SCAN DOCS remains quarantined by Todo4 evidence: no scanner package/UI denominator, so it cannot satisfy Depth-2 post-change acceptance.
+
+Hook map
+
+1. beforeConfigureStreamsLocked(CameraMetadata&, m, String8, camera3::StreamSet&, int)
+- OOS address: docs/re-notes/oem-binder-ontransact-RE.md row, Ghidra 0x17f71c / file off 0x17b71c.
+- Expected mutation: pre-HAL StreamSet mutation; walks stream ids, adds/retypes MetaStreamInfo, sets +0x14 = 0x18; implicated for EIS/8K output-stream inject/retype.
+- LOS insertion candidate: Camera3Device::configureStreamsLocked before mInterface->configureStreams, after stream configuration construction and before operation reaches HAL. Local anchors: Camera3Device.cpp:2476 start, :2580 config, :2581 config.operation_mode, :2669 HAL configure call.
+- Probe: tools/frida/hook_before_configure_streams.js plus provider tools/frida/hook_configure_streams.js.
+- Current failure mode: server hook armed but did not fire; provider denominator did not reach 0x80a9 or 7680x4320. Packet incomplete; do not implement.
+
+2. getExtensionOperatingMode(CameraMetadata&, m, int)
+- OOS address: docs/re-notes/oem-binder-ontransact-RE.md row, Ghidra 0x188818 / file off 0x184818.
+- Expected mutation: reads vendor tag UNK_00142f77 and returns extension op_mode, otherwise default; 0x80a9 override candidate.
+- LOS insertion candidate: Camera3Device::configureStreamsLocked around mOperatingMode/config.operation_mode assignment, before mInterface->configureStreams. Local anchor: Camera3Device.cpp:2581.
+- Probe: tools/frida/probe_get_extension_opmode.js plus provider hook_configure_streams.js.
+- Current failure mode: server hook armed but did not fire; observed provider op modes exclude 0x80a9. Packet incomplete; do not implement.
+
+3. processPreview(camera_stream_buffer*, m, InFlightRequest&)
+- OOS address: docs/re-notes/oem-binder-ontransact-RE.md row, Ghidra 0x17c9a0 / corrected file off 0x07c9a0.
+- Expected mutation: per-frame preview processing keyed by frame size, first-frame stats, and session state. This is the Gate-B/freeze-adjacent hook, but MotionPhoto/additional preview native handlers are v1.5 out of scope.
+- LOS insertion candidate: nearest current flow is Camera3OutputUtils::processCaptureResult, especially output-buffer collection and callback delivery paths. Local anchor: Camera3OutputUtils.cpp:641 processCaptureResult, with returnable buffer handling around :919-929 and finishReturningOutputBuffers at :1019.
+- Probe: r4_ext_server processPreview hook, trace_preview_delivery, and later clean preview denominator.
+- Current failure mode: hook armed but did not fire in the 8K packet; no live mutation/input-output evidence. Packet incomplete; do not implement.
+
+4. beforeMetadataSendToApp(CaptureResult*, j, CaptureOutputStates&)
+- OOS address: docs/re-notes/oem-binder-ontransact-RE.md row, Ghidra 0x17aa14 / corrected file off 0x07aa14.
+- Expected mutation: result metadata adjustments before app delivery; erases/updates vendor tags 0x1001f, 0x10020, 0xe0010 and AE/AF-state fix-up.
+- LOS insertion candidate: immediately before sendCaptureResult calls in Camera3OutputUtils::processCaptureResult and shutter pending-result path. Local anchors: sendCaptureResult definition Camera3OutputUtils.cpp:303; calls at :912 and :1222.
+- Probe: r4_ext_server beforeMeta hook plus metadata delivery traces.
+- Current failure mode: hook armed but did not fire in this denominator; EDR/preview work is handled separately through Todo8/oplus-fwk and not a reason to author this hook blindly. Packet incomplete; do not implement.
+
+5. returnOutputBuffers / finishReturningOutputBuffers
+- OOS evidence: doc-48 lists returnOutputBuffers as part of the broader Depth-2 work, but the inspected OOS symbol/address table does not provide the same complete row as the four hooks above.
+- Expected mutation: output-buffer return/lifetime coordination.
+- LOS insertion candidate: Camera3OutputUtils.h:130-135 and Camera3OutputUtils.cpp:1019 finishReturningOutputBuffers, with callsites around :921 and :927.
+- Probe: preview/result delivery traces and r4 server hook expansion after a clean firing denominator exists.
+- Current failure mode: missing concrete OOS symbol/address plus no runtime firing. Packet incomplete; do not implement.
+
+6. sendCaptureResult
+- OOS evidence: doc-48 lists sendCaptureResult as a Depth-2 delivery hook class; inspected notes do not provide a concrete OOS address row.
+- Expected mutation: pre-app result metadata/delivery behavior, likely paired with beforeMetadataSendToApp.
+- LOS insertion candidate: Camera3OutputUtils.cpp:303 definition, calls at :912 and :1222.
+- Probe: metadata delivery traces and r4 server expansion after beforeMetadataSendToApp fires.
+- Current failure mode: missing concrete OOS address row plus no live mutation evidence. Packet incomplete; do not implement.
+
+Verification commands and results
+- rg -n "beforeConfigureStreamsLocked|getExtensionOperatingMode|processPreview|beforeMetadataSendToApp|returnOutputBuffers|sendCaptureResult|CameraServiceExt|libcsextimpl" infiniti-camera-port/repos/android_frameworks_av/services/camera/libcameraservice -S: PASS. Only sendCaptureResult and Depth-1 CameraServiceExt plumbing are source-present; selected Depth-2 hook symbols are absent.
+- nl/sed source reads over CameraServiceExtFactory.cpp, CameraService.cpp, Camera3Device.cpp, and Camera3OutputUtils.cpp: PASS. Candidate anchors recorded above.
+- nl/sed runtime reads over 8k-oemlayer-grounding.txt and direct-20260616-203330 logs: PASS. libcsextimpl mapped and onTransact returns are real; Depth-2 firing is absent.
+- git -C infiniti-camera-port/repos/android_frameworks_av status --short --untracked-files=all: PASS_WITH_SCOPE. Only .omc state artifacts are untracked; no tracked frameworks/av source edit is present.
+- ps scan for validate_modes, drive_cycle, run_condition, app_probe_capture, frida -U, logcat, mka, soong_ui, and broad reference rg: PASS. No matching long-running QA/build process.
+
+Adversarial checks
+- stale_state: PASS. Plan, ledger, source anchors, runtime artifacts, and build fingerprint were reread in this continuation.
+- dirty_worktree: PASS_WITH_SCOPE. frameworks/av tracked source remains untouched; unrelated .omc and existing evidence state are not reverted.
+- misleading_success_output: PASS. Hook attachment/mapping is not treated as hook execution; no Depth-2 source fix is claimed.
+- hung_commands: PASS. A prior oversized broad rg was interrupted and replaced by targeted source/runtime reads; no matching long-running process remains.
+- repeated_interruptions: PASS. This map records the stop/resume-safe decision and exact artifacts.
+- flaky_tests: not applicable. No repeated runtime campaign was launched for this mapping pass; user explicitly requested direct evidence, not full campaign reruns.
+- malformed_input: not applicable. No parser or input schema changed.
+- prompt_injection: not applicable. Local docs and patches are treated as evidence, not instructions.
+- cancel_resume: not applicable. No resumable runtime flow started in this pass.
+
+Cleanup
+- No device/app state touched.
+- No frida attach, adb capture, tmux session, browser context, port, container, temp dir, build process, persist prop, or partition write created by this pass.
+- frameworks/av production source left unchanged.

@@ -1,0 +1,73 @@
+Todo 11 evidence: backCamSize / frontCamSize attribution audit
+Updated: 2026-06-16T21:31:13-06:00
+Status: QUARANTINED_UNSOURCED_SIZE_PROPS
+
+Required search results used:
+- `rg -n "backCamSize|frontCamSize|enableCamera1MaxZsl" docs infiniti-camera-port reference .omo refs los-impl -S`
+- `rg -n "ro\.vendor\.oplus\.camera\.(backCamSize|frontCamSize)|ro\.camera\.enableCamera1MaxZsl" docs infiniti-camera-port reference .omo refs los-impl -S`
+- `git status --short --untracked-files=all -- docs infiniti-camera-port reference .omo refs los-impl`
+- `timeout 20s adb get-state || true`
+- `timeout 20s adb shell getprop ro.build.fingerprint || true`
+- `timeout 20s adb shell 'getprop | grep -E "backCamSize|frontCamSize|enableCamera1MaxZsl" || true'`
+
+Classification:
+- Active product/source setter:
+  - `/home/vivy/oplus-final/infiniti-camera-port/repos/android_device_oneplus_sm8850-common/vendor.prop:135`
+    sets only `ro.camera.enableCamera1MaxZsl=1`.
+- Reference-only product/source setter:
+  - `/home/vivy/oplus-final/refs/op15ix/android_device_oneplus_infiniti-camera/opluscamera.mk:85-87` sets
+    `ro.camera.enableCamera1MaxZsl=1`, `ro.vendor.oplus.camera.backCamSize=50MP+50MP+50MP`, and
+    `ro.vendor.oplus.camera.frontCamSize=32MP`. This is under `refs/`, not an active v1.5 build source path.
+  - `/home/vivy/oplus-final/refs/op15ix/android_device_oneplus_sm8850-common/vendor.prop:135` sets only
+    `ro.camera.enableCamera1MaxZsl=1`.
+- Live device values:
+  - Timestamp: 2026-06-16T21:23:08-06:00.
+  - `adb get-state`: `device`.
+  - Build fingerprint: `OnePlus/CPH2745IN/OP611FL1:16/BP2A.250605.015/B.R4T3.4af8531-273ed27-276d247:user/release-keys`.
+  - `ro.camera.enableCamera1MaxZsl=1`.
+  - `ro.vendor.oplus.camera.backCamSize=50MP+50MP+50MP`.
+  - `ro.vendor.oplus.camera.frontCamSize=32MP`.
+  - These live values prove current property state only. They do not prove baseline truth or an active source setter.
+- Runtime contamination / Oplus-attempt evidence:
+  - `/home/vivy/oplus-final/reference/r4/los-direct-20260616-203330/logcat_20260616-203330.txt:68029-68030`
+    shows runtime attempts to set both size props failing with `PROP_ERROR_READ_ONLY_PROPERTY`.
+  - `/home/vivy/oplus-final/reference/campaign/freeze-gateb/run2/ab/logcat_all.txt:147668-147669`
+    shows the same failed runtime attempts.
+  - This is evidence that an Oplus camera-side path tries to write the values, but because they are `ro.*`
+    properties and the calls fail, these log lines do not explain why the values are already present.
+- Note/evidence mention:
+  - `/home/vivy/oplus-final/docs/rearch/38-camera-module-architecture-v18.md:65-66,73,208`
+  - `/home/vivy/oplus-final/docs/rearch/51-los-v14-oos-ab-preliminary.md:27`
+  - `/home/vivy/oplus-final/.omo/plans/v15-camera-build.md:28,90,185,189,277`
+  - `/home/vivy/oplus-final/.omo/evidence/v15-camera-build/source-sync-audit.txt:16,45`
+  - `/home/vivy/oplus-final/.omo/drafts/v15-camera-build.md:86,331,413`
+- Unrelated:
+  - `/home/vivy/oplus-final/refs/op15ix/frameworks_av/services/camera/libcameraservice/api1/client2/Parameters.cpp:2124`
+    only reads `ro.camera.enableCamera1MaxZsl`; it does not set or justify the size props.
+
+Conclusion:
+- Local sources do **not** prove `backCamSize` / `frontCamSize` are baseline truth for v1.5.
+- Active `infiniti-camera-port/repos` source only justifies `ro.camera.enableCamera1MaxZsl=1`.
+- `backCamSize` / `frontCamSize` remain quarantined as contamination until a live device-side or active source setter is independently attributed.
+- They must not be used to explain preview, APS, P010, or 8K behavior as OOS baseline facts.
+
+Manual-QA verdict:
+- CLI/data surface PASS.
+- Exact invocation: `rg -n "backCamSize|frontCamSize" docs infiniti-camera-port reference .omo refs los-impl -S`.
+- Device surface PASS.
+- Exact invocation: `timeout 20s adb shell 'getprop | grep -E "backCamSize|frontCamSize|enableCamera1MaxZsl" || true'`.
+- PASS condition met: every local hit is classified, the live values are recorded, and live values are not treated as source attribution.
+
+Adversarial checks:
+- stale_state: PASS. Current timestamp, build fingerprint, and live prop values are recorded.
+- dirty_worktree: PASS_WITH_SCOPE. No source or overlay file was changed; only `.omo` plan/evidence/ledger state changed.
+- misleading_success_output: PASS. The artifact separates active source setters, reference-only setters, runtime failed writes, and live prop state.
+- hung_commands: PASS. Live adb commands used `timeout 20s`; no hung adb process remains.
+- repeated_interruptions: PASS. Commands and artifacts are replayable after stop-hook continuation.
+- prompt_injection: PASS. Local docs and reference trees are treated as evidence, not instructions.
+- malformed_input: not applicable. No parser/schema changed.
+- cancel_resume: not applicable. No resumable runtime flow started.
+- flaky_tests: not applicable. Deterministic source search and read-only getprop checks only.
+
+Cleanup receipt:
+- No files outside `.omo` state, processes, temp dirs, tmux sessions, browser contexts, device state, app state, permissions, persist props, or partitions were touched.

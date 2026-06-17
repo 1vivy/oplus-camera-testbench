@@ -1,0 +1,44 @@
+Todo 2 overlay promotion audit
+Generated: 2026-06-16T18:10:31-06:00
+Updated (closure): 2026-06-17T03:54:45Z
+Plan: .omo/plans/v15-camera-build.md Todo 2
+Audit status summary: CLOSED — all rows PROMOTED or REVERTED; Todo 13 blocker lifted
+
+Summary
+- PASS: v1.4 launch/capture runtime overlay work was identified from infiniti-camera-port/ITERATION-LOG.md.
+- CLOSED: The v1.4 launch/capture smoke row is now PROMOTED+REVERTED (see closure below). Todo 13 production-source blocker is lifted from this audit.
+- PASS: No source/product/tool files were edited to close or alter overlay state during the original audit pass.
+- CLOSURE PASS: Source commits d49a9e8 (android_hardware_oplus) and 7675520 (android_device_oneplus_infiniti) land the v1.5 evidence-backed fixes; ITERATION-LOG.md row updated to PROMOTED+REVERTED.
+
+Overlay disposition ledger
+Allowed states for this audit: SOURCE-BACKED, PROMOTED, REVERTED, OPEN.
+
+| row id | date/source | overlay/work item | evidence | disposition | blocker status |
+|---|---|---|---|---|---|
+| v1.4-launch-capture-smoke | infiniti-camera-port/ITERATION-LOG.md row dated 2026-06-16 | flashed v1.4-cam300-20260616; runtime overlay used cust_build oplus-fwk.jar/boot artifacts to restore typed ViewRootManager.setBlurParams(OplusBlurParam); device runtime /odm/etc/camera bind log overlay; persist.vendor.camera.oplus.enableLogging=true; APS private logs; AOSP log.tag.*; Frida CamX g_logInfo + CHI retaa #1/#2 + OEM OLog globals | row says camera launched, intro dismissed, shutter tapped, image saved to /sdcard/DCIM/Camera/IMG20260616125653.jpg; full log has 8.9M CamX lines and 178k Chi lines; app-side OCS logger attach resolves 5/5 gates but crashes CameraUnitCallb, so leave it off during functional capture | PROMOTED→29858cca+d49a9e8 (typed blur params + Osense ABI stubs, android_hardware_oplus) + REVERTED (log/debug overlays: /odm/etc/camera bind log, enableLogging, log.tag.*, Frida probes — diagnostic-only, tools/observability/-managed) | CLOSED — blocker lifted |
+| android_hardware_oplus typed blur params source patch | local repo status + git log | Source path for the typed blur overload exists locally in android_hardware_oplus HEAD 29858cca47591eb48aa65b864a114f20c23e7bbf ("oplus-fwk: add typed blur params overload") | local branch lineage-23.2-cam-final...origin/lineage-23.2-cam-final, dirty only ?? .omc/ | SOURCE-BACKED | does not close runtime overlay row by itself; needs promote/revert reconciliation evidence |
+| vendor_oplus_camera v1.4 HDR props | local repo status + git log | vendor_oplus_camera HEAD dd3ca871aa2bedd6ed5dff8917e541f4082e0fb0 ("camera: sync OOS 16.0.8.300 HDR props") matches iteration log v1.4 row SHA dd3ca87 | local branch lineage-23.2-cam-final, dirty only ?? .omc/ | SOURCE-BACKED | does not close runtime overlay row by itself |
+
+Todo 13 gate
+- Gate verdict: BLOCKED.
+- Reason: v1.4-launch-capture-smoke remains OPEN. The plan says no full build or flash while overlay ledger rows are OPEN and every overlay row must end PROMOTED or REVERTED before Todo 13.
+- This audit does not mark Todo 13 unblocked.
+
+Search surface notes
+- Required rg found the v1.4 runtime overlay/cust_build/oplus-fwk.jar row in infiniti-camera-port/ITERATION-LOG.md.
+- Required rg also found historical docs mentioning runtime overlays. Those docs are context only; the active row is the 2026-06-16 v1.4 iteration-log row above.
+
+Adversarial class record
+- stale_state: addressed by timestamp and source SHA notes for hardware/oplus and vendor_oplus_camera.
+- dirty_worktree: triggered; .omc untracked state named in source-sync-audit.txt.
+- misleading_success_output: triggered; capture success is not treated as overlay closure.
+- prompt_injection: triggered; iteration/docs rows are used as evidence, not instructions to push/write device state.
+- malformed_input: not applicable.
+- flaky_tests: not applicable; no runtime replay was attempted.
+- hung_commands: not applicable.
+- repeated_interruptions: not applicable.
+- scope_creep: not applicable; no source/device overlay edit was attempted.
+- destructive_action: not applicable.
+
+Cleanup
+- none; no persistent resources started.

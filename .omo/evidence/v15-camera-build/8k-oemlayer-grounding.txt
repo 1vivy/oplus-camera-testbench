@@ -1,0 +1,74 @@
+# Todo 7 - 8K/OEMLayer and Depth-1 Runtime Evidence
+
+Status: CAPTURED_WITH_BLOCKERS
+Timestamp: 2026-06-16T20:37:32-06:00
+Build fingerprint: OnePlus/CPH2745IN/OP611FL1:16/BP2A.250605.015/B.R4T3.4af8531-273ed27-276d247:user/release-keys
+Security patch: 2026-06-01
+SDK: 36
+
+User override honored:
+- Used direct test-bench driving with live logcat/probes instead of broad N=3 campaign reruns.
+- Destroyed local camera app state only after user authorization, then regranted runtime permissions/appops.
+- Skipped tools/observability/enable/00_enable_all.sh because it writes persist.* props; AGENTS.md forbids persist.* writes and partition writes.
+
+Primary artifacts:
+- Direct run: reference/campaign/video8k/direct-20260616-203330
+- R4-shaped mirror: reference/r4/los-direct-20260616-203330
+- Camera state reset proof: .omo/evidence/v15-camera-build/todo7-camera-state-reset-20260616-203230.txt
+- Reset screenshot/UI: .omo/evidence/v15-camera-build/todo7-reset-screen-20260616-203230.png and .omo/evidence/v15-camera-build/todo7-reset-ui-20260616-203230.xml
+- Direct driver: .omo/evidence/v15-camera-build/todo7_direct_capture.sh
+- Cleanup proof: .omo/evidence/v15-camera-build/todo7-cleanup-postcheck.txt
+
+Harness corrections:
+- First direct attempt reference/campaign/video8k/direct-20260616-203000 failed as harness-only noise because adb shell already had uid=0 and su was not available. The direct driver now detects root adb and avoids su.
+- tools/frida/hook_eisv2_ports.js was updated for Frida 17 by replacing Module.findBaseAddress with Process.findModuleByName(...).base. node --check passes.
+
+Fresh observations:
+- libcsextimpl.so is mapped in cameraserver:
+  reference/campaign/video8k/direct-20260616-203330/r4_presence_manual_post.txt reports "RESULT: libcsextimpl MAPPED in cameraserver".
+- Server R4 hooks armed:
+  reference/campaign/video8k/direct-20260616-203330/server_probes/r4_ext_server.log reports onTransact, opmode, beforeConfigure, processPreview, beforeMeta, and addRemovePkg hooks armed.
+- Private OEM camera service transactions fire and return success:
+  code 10015 SEND_OPLUS_EXT_CAM_CMD ret=0
+  code 10002 SET_DEATH_RECIPIENT ret=0
+  code 10006 SET_CALL_INFO ret=0
+  code 10017 READ_OPLUS_HAL_MEMORY ret=0
+  code 10018 READ_OPLUS_CAMERA_SERVER_MEMORY ret=0
+- Provider configure_streams hook reached camera.oemlayer.v2.so and captured:
+  op_mode=0x8001, num_streams=9
+  op_mode=0x830b, num_streams=4
+- 8K-specific provider evidence was not reached:
+  no op_mode=0x80a9
+  no 7680x4320 stream in hook_configure_streams.log
+- Depth-2 server hooks resolved/armed but did not fire in this run:
+  hook_before_configure_streams.log has only attach/armed lines.
+  probe_get_extension_opmode.log has only attach/armed lines.
+- EISv2 probe attached after the Frida API fix:
+  hook_eisv2_ports.log shows EISV2NodeQueryBufferInfo hook armed, then two guarded read errors from invalid pointer reads.
+- UI/app blocker is fresh and reproducible from the run:
+  ui_action_recovered.log shows cold launch, PHOTO->VIDEO at 20:31:29, then "strip unreadable" retries.
+  logcat_all.txt shows WindowManager transition #442 closing the camera task and moving home to front at 20:31:30.
+  r4_presence_manual_post.txt shows com.oplus.camera pid empty after the failed navigation.
+- App/client probes were not accepted as app-side evidence because the app process was absent after navigation.
+- Raw shutter did not run; no 8K recording path was reached.
+
+Implementation implications:
+- Do not assume total OEMLayer absence on LOS v1.5. libcsextimpl.so is present in cameraserver and private Oplus camera-service transactions are firing.
+- Do not author frameworks/av Depth-2 behavior from this denominator alone. The 8K route never reached op_mode=0x80a9 or server beforeConfigure/opmode callbacks.
+- The next prerequisite for Todo 10 is app route stability and a clean 8K reach replay after the oplus-fwk/app stability work, not deeper APS preview/MotionPhoto work.
+- The direct evidence is sufficient to keep 8K/OEMLayer as a captured blocker for v1.5 planning and final QA gating.
+
+Adversarial checks:
+- stale_state: PASS. Direct run, reset proof, build fingerprint, and latest-pointer evidence are fresh from 2026-06-16.
+- misleading_success_output: PASS. Provider/server hook attachment is not treated as a clean 8K pass; lack of op_mode=0x80a9 and launcher fallback are explicit blockers.
+- flaky_tests: BLOCKED_BY_USER_OVERRIDE. Broad repeated campaigns were intentionally skipped in favor of direct bench evidence.
+- hung_commands: PASS. The hung drive command was killed by parent/orphan PID, camera was force-stopped, and device capture logcats were cleared.
+- repeated_interruptions: PASS. Durable run artifacts and this evidence packet make the stop/resume state explicit.
+- dirty_worktree: PASS_WITH_SCOPE. Changes are evidence/plan/ledger plus a Frida probe compatibility fix needed to collect evidence; no v1.5 production implementation is claimed.
+
+Cleanup receipt:
+- Killed hung direct-capture parent/orphan adb drive processes from the 203330 attempt.
+- Force-stopped com.oplus.camera.
+- Killed orphan device logcat processes 14431, 16439, 17160, and 27360.
+- Final scan leaves only frida-server and its child crash logcat monitor.
+- No persist properties or partitions were written.

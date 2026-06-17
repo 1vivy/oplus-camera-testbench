@@ -1,0 +1,175 @@
+{
+  "task": "Verify Todo 4 validate_modes root-ADB fix and targeted validation artifacts without running another broad campaign",
+  "generated_at": "2026-06-16 19:31:34 -0600 MDT",
+  "workspace": "/home/vivy/oplus-final",
+  "broad_campaign_launched": false,
+  "smoke_run_launched": false,
+  "edited_files": [
+    ".omo/evidence/v15-camera-build/todo4-validator-fix-audit.txt",
+    ".omo/evidence/v15-camera-build/todo4-validator-fix-ledger.json"
+  ],
+  "commands": [
+    {
+      "command": "bash -n tools/observability/campaign/validate_modes.sh",
+      "purpose": "Validate shell syntax for the patched validator",
+      "result": "PASS exit 0; no syntax output"
+    },
+    {
+      "command": "git diff -- tools/observability/campaign/validate_modes.sh",
+      "purpose": "Inspect the root-ADB patch and per-run diagnostic additions",
+      "result": "PASS; diff adds adb shell id -u detection, adb_as_root plain-shell path for uid 0, su fallback otherwise, and per-run artifacts under reference/validate_modes/<mode>/run<k>/"
+    },
+    {
+      "command": "timeout 30s adb shell 'id; command -v su || true; su -c id 2>&1 || true' | tr -d '\\r'",
+      "purpose": "Confirm attached device root-ADB/no-su context",
+      "result": "PASS; adb shell id reports uid=0(root) context=u:r:su:s0, and su reports '/system/bin/sh: su: inaccessible or not found'"
+    },
+    {
+      "command": "for f in reference/validate_modes/photo/run*/verdict.txt reference/validate_modes/text/run*/verdict.txt reference/validate_modes/scandoc/run*/verdict.txt; do printf '%s\\t' \"$f\"; stat -c '%y\\t%s bytes\\t' \"$f\"; sed -n '1,5p' \"$f\"; done",
+      "purpose": "Inspect targeted per-run verdicts and mtimes",
+      "result": "PASS; photo 3/3 PASS, text 3/3 PASS, scandoc 0/3 FAIL with missing_marker/nav_failed/foreground_mismatch diagnostics"
+    },
+    {
+      "command": "for f in .omo/evidence/v15-camera-build/validate-modes-smoke.txt .omo/evidence/v15-camera-build/validate-modes-fixed-full.txt; do printf '%s\\t' \"$f\"; stat -c '%y\\t%s bytes\\n' \"$f\"; sed -n '1,220p' \"$f\"; done",
+      "purpose": "Inspect prior smoke and fixed-full evidence summaries",
+      "result": "PASS; smoke records text 1/1 and scandoc 0/1; fixed-full records photo 3/3, text 3/3, scandoc 0/3, p010 0/3"
+    },
+    {
+      "command": "ps -eo pid,ppid,etime,cmd | rg 'validate_modes|drive_cycle|run_condition|app_probe_capture|frida -U|logcat' || true",
+      "purpose": "Check for hung capture processes",
+      "result": "PASS; only the audit check shell and rg process matched, no lingering capture/drive/frida/logcat process"
+    },
+    {
+      "command": "python3 -m json.tool .omo/evidence/v15-camera-build/todo4-validator-fix-ledger.json",
+      "purpose": "Validate this ledger JSON",
+      "result": "PASS after file creation"
+    },
+    {
+      "command": "test -s .omo/evidence/v15-camera-build/todo4-validator-fix-audit.txt",
+      "purpose": "Validate audit artifact is non-empty",
+      "result": "PASS after file creation"
+    }
+  ],
+  "artifacts": {
+    "created": [
+      {
+        "path": ".omo/evidence/v15-camera-build/todo4-validator-fix-audit.txt",
+        "type": "text audit"
+      },
+      {
+        "path": ".omo/evidence/v15-camera-build/todo4-validator-fix-ledger.json",
+        "type": "json ledger"
+      }
+    ],
+    "inspected": [
+      {
+        "path": ".omo/evidence/v15-camera-build/validate-modes-smoke.txt",
+        "mtime": "2026-06-16 19:10:04.949634076 -0600",
+        "summary": "K=1 text/scandoc smoke: text 1/1 GRADUATE, scandoc 0/1 FLAKY"
+      },
+      {
+        "path": ".omo/evidence/v15-camera-build/validate-modes-fixed-full.txt",
+        "mtime": "2026-06-16 19:20:43.277496617 -0600",
+        "summary": "K=3 summary: photo 3/3, text 3/3, scandoc 0/3, p010 0/3; no completed video8k summary line before interruption"
+      },
+      {
+        "path": "reference/validate_modes/report.txt",
+        "mtime": "2026-06-16 19:20:43.277496617 -0600",
+        "summary": "Matches fixed-full summary through p010"
+      },
+      {
+        "path": "reference/validate_modes/photo/run1/verdict.txt",
+        "mtime": "2026-06-16 19:11:32.865726298 -0600",
+        "summary": "PASS screenshot_bytes=2927833"
+      },
+      {
+        "path": "reference/validate_modes/photo/run2/verdict.txt",
+        "mtime": "2026-06-16 19:12:01.229061794 -0600",
+        "summary": "PASS screenshot_bytes=2929164"
+      },
+      {
+        "path": "reference/validate_modes/photo/run3/verdict.txt",
+        "mtime": "2026-06-16 19:12:29.777866643 -0600",
+        "summary": "PASS screenshot_bytes=2914647"
+      },
+      {
+        "path": "reference/validate_modes/text/run1/verdict.txt",
+        "mtime": "2026-06-16 19:13:06.871930070 -0600",
+        "summary": "PASS screenshot_bytes=3053121"
+      },
+      {
+        "path": "reference/validate_modes/text/run2/verdict.txt",
+        "mtime": "2026-06-16 19:13:44.179437497 -0600",
+        "summary": "PASS screenshot_bytes=3039426"
+      },
+      {
+        "path": "reference/validate_modes/text/run3/verdict.txt",
+        "mtime": "2026-06-16 19:14:21.252542260 -0600",
+        "summary": "PASS screenshot_bytes=3058414"
+      },
+      {
+        "path": "reference/validate_modes/scandoc/run1/verdict.txt",
+        "mtime": "2026-06-16 19:15:07.652719287 -0600",
+        "summary": "FAIL missing_marker, nav_failed, foreground_mismatch=com.coloros.ocrscanner, actual foreground com.oplus.camera"
+      },
+      {
+        "path": "reference/validate_modes/scandoc/run2/verdict.txt",
+        "mtime": "2026-06-16 19:15:55.186495680 -0600",
+        "summary": "FAIL missing_marker, nav_failed, foreground_mismatch=com.coloros.ocrscanner, actual foreground com.oplus.camera"
+      },
+      {
+        "path": "reference/validate_modes/scandoc/run3/verdict.txt",
+        "mtime": "2026-06-16 19:16:41.637593815 -0600",
+        "summary": "FAIL missing_marker, nav_failed, foreground_mismatch=com.coloros.ocrscanner, actual foreground com.oplus.camera"
+      }
+    ]
+  },
+  "root_adb_context": {
+    "adb_shell_uid": "0",
+    "adb_shell_id": "uid=0(root) gid=0(root) groups=0(root),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs) context=u:r:su:s0",
+    "su_result": "/system/bin/sh: su: inaccessible or not found",
+    "conclusion": "Hardcoded adb shell su -c is a false-failure wrapper in this context; the patch's plain adb shell path is required."
+  },
+  "reach_rates": {
+    "photo": {
+      "passed": 3,
+      "total": 3,
+      "status": "GRADUATE"
+    },
+    "text": {
+      "passed": 3,
+      "total": 3,
+      "status": "GRADUATE"
+    },
+    "scandoc": {
+      "passed": 0,
+      "total": 3,
+      "status": "FLAKY",
+      "failure_type": "true mode/navigation failure, not root-wrapper false failure"
+    }
+  },
+  "adversarial_classes": {
+    "stale_state": "Evidence mtimes postdate validate_modes.sh source mtime and are from the same 2026-06-16 validation window; smoke per-run files were overwritten by the later K=3 run, but smoke summary remains preserved.",
+    "dirty_worktree": "Tracked source diff is limited to tools/observability/campaign/validate_modes.sh; .omo/evidence/v15-camera-build is untracked evidence; unrelated untracked condition env files are present.",
+    "misleading_success_output": "Root-wrapper false failure is distinguished from SCAN DOCS: photo/text pass with per-run diagnostics, scandoc fails with missing marker/nav/foreground diagnostics.",
+    "hung_commands": "No lingering capture process remains; process scan matched only the audit command shell and rg.",
+    "repeated_interruptions": "Per-run diagnostics exist for completed photo/text/scandoc runs; video8k partial run2 indicates interruption but is outside this targeted claim.",
+    "flaky_tests": "Observed reach rates: photo 3/3, text 3/3, scandoc 0/3.",
+    "malformed_input": "N/A; not triggered.",
+    "prompt_injection": "N/A; not triggered.",
+    "cancel_resume": "N/A; no active campaign was resumed or cancelled by this audit."
+  },
+  "cleanup": {
+    "smoke_run_cleanup_needed": false,
+    "camera_force_stop_performed": false,
+    "reason": "No smoke or broad campaign was launched during this audit.",
+    "remaining_processes": "None beyond the process-check command itself."
+  },
+  "risks": [
+    "Existing validate-modes-fixed-full.txt is a summary from a broad run the user objected to; this audit did not rerun it and treats it only as existing evidence.",
+    "SCAN DOCS remains a real targeted failure and should not be reported as fixed by the root-ADB wrapper change.",
+    "The reference/validate_modes tree includes partial video8k artifacts from an interrupted run; the requested photo/text/scandoc evidence is complete.",
+    "Unrelated untracked condition env files remain in the worktree and were not modified."
+  ],
+  "done": true
+}

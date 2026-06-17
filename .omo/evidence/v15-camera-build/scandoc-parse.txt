@@ -1,0 +1,16 @@
+=== condition verdict: scandoc ===
+runs=3  mode=scandoc session= ae_lock=1 selinux=Permissive build=V16.1.0
+  symptom row                    stock value (run1)     determinism across runs
+  ------------------------------------------------------------------------------
+  #2  no-JPEG / fusion graph     6805216                stable [present(>0); counts vary ['6805216', '6782422', '6809708']]
+  #2  hdr_detected publish       present                stable
+  #4  copyMetadata UAF           False                  stable
+  #1  preview freeze             bt-captured(manual-rea stable
+  #3/G6 display HDR caps         ColorMode::SRGB HLG/PQ stable
+  #8  8K configure_streams -38   False                  stable
+  G5  OEM binder dropped         0                      stable
+
+  stimulus audit: shutter fired each run = [True, True, True] (false => stimulus did NOT run — check action log)
+
+  wrote reference/campaign/scandoc/verdict.json
+  ALL STABLE — decision-ready (still stock-only; LOS A/B deferred)

@@ -1,0 +1,131 @@
+{
+  "artifacts": {
+    "environment_preflight": ".omo/evidence/v15-camera-build/environment-preflight.txt",
+    "state_manifest": ".omo/evidence/v15-camera-build/state-manifest.json",
+    "todo1_manual_qa": ".omo/evidence/v15-camera-build/todo1-manual-qa.txt",
+    "todo1_worker_doneclaim": ".omo/evidence/v15-camera-build/todo1-worker-doneclaim.json"
+  },
+  "baseline_failing_first": {
+    "conclusion": "Before this run, state-manifest.json and environment-preflight.txt existed, but todo1-manual-qa.txt and todo1-worker-doneclaim.json were missing; the required Todo 1 artifact set was incomplete and refreshed."
+  },
+  "blockers_risks": [
+    {
+      "evidence": "test -x exited 1",
+      "item": "tools/observability/strace/strace.aarch64",
+      "status": "BLOCKED"
+    },
+    {
+      "evidence": "state/preflight mark path absent",
+      "item": "infiniti-camera-port/repos/proprietary_vendor_oneplus_infiniti",
+      "status": "BLOCKED"
+    },
+    {
+      "evidence": "git status and manifest/preflight dirty summaries captured",
+      "item": "dirty worktree/nested repos",
+      "status": "PARTIAL"
+    },
+    {
+      "evidence": "overlay list captured; not treated as readiness proof",
+      "item": "active overlays",
+      "status": "PARTIAL"
+    }
+  ],
+  "changed_files": [
+    ".omo/evidence/v15-camera-build/state-manifest.json",
+    ".omo/evidence/v15-camera-build/environment-preflight.txt",
+    ".omo/evidence/v15-camera-build/todo1-manual-qa.txt",
+    ".omo/evidence/v15-camera-build/todo1-worker-doneclaim.json"
+  ],
+  "cleanup": {
+    "no_long_running_resources_remain": true,
+    "receipt": "tmux session v15-todo1-manual killed or absent; no long-running resources remain.",
+    "tmux_has_session_after_cleanup": {
+      "command": "tmux has-session -t v15-todo1-manual 2>/dev/null",
+      "exit_code": 1,
+      "stderr": "",
+      "stdout": ""
+    },
+    "tmux_session": "v15-todo1-manual"
+  },
+  "current_manifest_summary": {
+    "generated_at_utc": "2026-06-17T00:19:52Z",
+    "overall_status": "PARTIAL",
+    "plan_sha256": "cf06616b6a5538d2e626df7e28698c89d453377d0c268d04901cad3b03feef8c",
+    "schema": "oplus-final.v15-camera-build.state-manifest"
+  },
+  "device_readiness_claim": "No broad device readiness is claimed; only adb presence, fingerprint, and Frida reachability are recorded.",
+  "generated_at_utc": "2026-06-17T00:20:52Z",
+  "manual_qa": {
+    "artifact": ".omo/evidence/v15-camera-build/todo1-manual-qa.txt",
+    "binary_observable_pass": true,
+    "contains_fail": false,
+    "contains_pass": true,
+    "required_tmux_sequence": "tmux new-session/send-keys/sleep/capture-pane/kill-session was executed as requested; first attempt hit an oh-my-zsh prompt, second exact rerun produced the retained pass artifact.",
+    "tmux_session": "v15-todo1-manual"
+  },
+  "schema": "oplus-final.v15-camera-build.todo1-worker-doneclaim.v2",
+  "status": "PARTIAL",
+  "status_reason": "Deliverables exist and Todo 1 JSON/manual QA checks pass, but the environment gate is intentionally PARTIAL/BLOCKED for missing executable static strace, absent proprietary_vendor_oneplus_infiniti, and dirty/untracked repo state.",
+  "tests": [
+    {
+      "command": "python3 -m json.tool .omo/evidence/v15-camera-build/state-manifest.json",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "{\n    \"active_overlays\": {\n        \"command\": {\n            \"command\": \"timeout 8s adb shell 'cmd overlay list 2>/dev/null | sed -n \\\"1,140p\\\"'\",\n            \"exit_code\": 0,\n            \"stderr\": \"\",\n            \"stdout\": \"com.android.documentsui\\n[x] com.android.documentsui.overlay\\n\\ncom.qualcomm.uimremoteclient\\n[ ] com.qualcomm.uimremoteclient\\n\\ncom.qualcomm.qti.telephonyservice\\n--- com.qualcomm.qti.telephonyservice\\n\\ncom.android.avatarpicker\\n[x] com.android.avatarpicker.auto_generated_rro_product__\\n\\ncom.qualcomm.uimremoteserver\\n[ ] com.qualcomm.uimremoteserver\\n\\ncom.android.networkstack\\n[x] com.android.networkstack.overlay\\n\\ncom.android.carrierconfig\\n[x] com.android.carrierconfig.overlay.common\\n\\nandroid\\n--- android.auto_generated_rro_vendor__\\n[x] android.overlay.common\\n[x] android.overlay.target.euicc\\n[x] android.overlay.generic\\n[x] android.overlay.target.common\\n[x] android.overlay.target.phone\\n[x] android.overlay.oplus\\n[x] android.overlay.oplus.target\\n[x] org.lineageos.aperture.frameworksbaseoverlay\\n[x] org.lineageos.glimpse.frameworksbaseoverlay\\n[x] org.lineageos.overlay.font.googlesansflex\\n[x] android.auto_generated_rro_product__\\n[ ] com.android.internal.display.cutout.emulation.corner\\n[ ] org.lineageos.overlay.customization.blacktheme\\n[ ] com.android.internal.display.cutout.emulation.double\\n[ ] com.android.internal.display.cutout.emulation.hole\\n[ ] com.android.internal.display.cutout.emulation.tall\\n[x] com.android.internal.systemui.navbar.threebutton\\n[ ] com.android.theme.font.notoserifsource\\n[ ] com.android.internal.display.cutout.emulation.waterfall\\n[ ] com.android.internal.systemui.navbar.transparent\\n[ ] com.android.role.notes.enabled\\n[ ] com.android.internal.systemui.navbar.gestural\\n[x] com.android.systemui:accent\\n[x] com.android.systemui:dynamic\\n[x] com.android.systemui:neutral\\n\\ncom.android.launcher3\\n[x] com.android.launcher3.auto_generated_rro_product__\\n[x] com.android.launcher3.overlay\\n\\norg.lineageos.settings.doze\\n[x] org.lineageos.settings.doze.auto_generated_rro_product__\\n[x] org.lineageos.settings.doze.overlay\\n\\norg.protonaosp.deviceconfig\\n[x] org.protonaosp.deviceconfig.auto_generated_rro_product__\\n\\norg.codeaurora.ims\\n[ ] org.codeaurora.ims\\n\\norg.lineageos.setupwizard\\n[x] org.lineageos.setupwizard.auto_generated_rro_product__\\n\\ncom.qualcomm.qcrilmsgtunnel\\n--- com.qualcomm.qcrilmsgtunnel\\n\\ncom.android.providers.settings\\n[x] com.android.providers.settings.overlay.generic\\n[x] com.android.providers.settings.overlay.oplus.target\\n[x] com.android.providers.settings.auto_generated_rro_product__\\n\\ncom.android.se\\n[x] com.android.se.overlay.target\\n\\ncom.android.dialer\\n[x] com.android.dialer.auto_generated_rro_product__\\n\\ncom.android.wifi.resources\\n[x] com.android.wifi.resources.overlay.common\\n[x] com.android.wifi.resources.overlay.target\\n[x] com.android.wifi.resources.overlay.oplus\\n[x] com.android.wifi.resources.overlay.oplus.target\\n\\norg.lineageos.euicc\\n[x] org.linea...[truncated]"
+    },
+    {
+      "command": "test -s .omo/evidence/v15-camera-build/state-manifest.json",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "command": "test -s .omo/evidence/v15-camera-build/environment-preflight.txt",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "command": "rg -n \"PASS|PARTIAL|BLOCKED\" .omo/evidence/v15-camera-build/environment-preflight.txt",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "1:PARTIAL timestamp_utc=2026-06-17T00:19:52Z timestamp_local=2026-06-16T18:19:52-06:00 plan_sha256=cf06616b6a5538d2e626df7e28698c89d453377d0c268d04901cad3b03feef8c schema=oplus-final.v15-camera-build.environment-preflight.v3\n4:PARTIAL .omo/evidence/v15-camera-build/state-manifest.json exists_before=True empty_before=False size_before=115827 mtime_utc=2026-06-17T00:17:50Z mtime_local=2026-06-16T18:17:50-06:00 audit_timestamp_utc=2026-06-17T00:19:52Z disposition=audited before overwrite for fresh Todo 1 state\n5:PARTIAL .omo/evidence/v15-camera-build/environment-preflight.txt exists_before=True empty_before=False size_before=9068 mtime_utc=2026-06-17T00:19:44Z mtime_local=2026-06-16T18:19:44-06:00 audit_timestamp_utc=2026-06-17T00:19:52Z disposition=audited before overwrite for fresh Todo 1 state\n8:PASS repo_head detail=\"8175b58a1887f07a5227aea123012c9ef2fc0cc5\"\n9:PARTIAL git_dirty_untracked_status detail=[\"?? .omo/boulder.json\", \"?? .omo/drafts/v15-camera-build.md\", \"?? .omo/evidence/v15-camera-build/blob-sync-audit.txt\", \"?? .omo/evidence/v15-camera-build/condition-wiring.txt\", \"?? .omo/evidence/v15-camera-build/environment-preflight.txt\", \"?? .omo/evidence/v15-camera-build/framework-vector-audit.txt\", \"?? .omo/evidence/v15-camera-build/overlay-promotion-audit.txt\", \"?? .omo/evidence/v15-camera-build/source-sync-audit.txt\", \"?? .omo/evidence/v15-camera-build/state-manifest.json\", \"?? .omo/evidence/v15-camera-build/todo1-ledger-entry.json\", \"?? .omo/evidence/v15-camera-build/todo1-manual-qa.txt\", \"?? .omo/evidence/v15-camera-build/todo1-worker-doneclaim.json\", \"?? .omo/evidence/v15-camera-build/todo2-ledger-entry.json\", \"?? .omo/evidence/v15-camera-build/todo3-ledger-entry.json\", \"?? .omo/plans/v15-camera-build.md\", \"?? .omo/start-work/ledger.jsonl\", \"?? tools/observability/campaign/conditions/p010-basictone.env\", \"?? tools/observability/campaign/conditions/text-edr-preview.env\"]\n10:PASS CODEX_THREAD_ID detail=\"019ed2ee-16fa-7d13-af79-20db218564bd\"\n11:PASS plan_hash detail=\"cf06616b6a5538d2e626df7e28698c89d453377d0c268d04901cad3b03feef8c\"\n12:PASS adb detail=\"device\"\n13:PASS device_build_fingerprint detail=\"OnePlus/CPH2745IN/OP611FL1:16/BP2A.250605.015/B.R4T3.4af8531-273ed27-276d247:user/release-keys\"\n14:PASS frida_cli detail=\"17.9.11\"\n15:PASS frida_server_reachability detail=\"PID  Name; -----  ------------------------------------------------------------; 5884  .adservices; 3894  .cacertservice; 4044  .dataservices; 3988  .qtidataservices; 5604  AudioFX; 26719  Camera; 5254  Clock; 8439  Fi...\"\n16:PASS python3 detail=\"Python 3.12.3\"\n17:BLOCKED static_strace detail=\"file exists but is not executable or is missing\"\n18:PASS stock_oos_reference detail=[\"docs/OOS-BASELINE-V16.0.8.300.md\", \"docs/OOS-BASELINE-V16.1.0.md\", \"reference/_golden-oos-V16.1.0\", \"reference/ab/oos-photo\", \"reference/ab/oos-photo-v16.0.8.300\"]\n19:PARTIAL active_overlays detail=[\"com.android.documentsui.overlay\", \"com.android.avatarpicker.auto_generated_rro_product__\", \"com.android.n...[truncated]"
+    },
+    {
+      "command": "git status --short --untracked-files=all",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "?? .omo/boulder.json\n?? .omo/drafts/v15-camera-build.md\n?? .omo/evidence/v15-camera-build/blob-sync-audit.txt\n?? .omo/evidence/v15-camera-build/condition-wiring.txt\n?? .omo/evidence/v15-camera-build/environment-preflight.txt\n?? .omo/evidence/v15-camera-build/framework-vector-audit.txt\n?? .omo/evidence/v15-camera-build/overlay-promotion-audit.txt\n?? .omo/evidence/v15-camera-build/source-sync-audit.txt\n?? .omo/evidence/v15-camera-build/state-manifest.json\n?? .omo/evidence/v15-camera-build/todo1-ledger-entry.json\n?? .omo/evidence/v15-camera-build/todo1-manual-qa.txt\n?? .omo/evidence/v15-camera-build/todo1-tmux-qa.txt\n?? .omo/evidence/v15-camera-build/todo1-worker-doneclaim.json\n?? .omo/evidence/v15-camera-build/todo2-ledger-entry.json\n?? .omo/evidence/v15-camera-build/todo3-ledger-entry.json\n?? .omo/plans/v15-camera-build.md\n?? .omo/start-work/ledger.jsonl\n?? tools/observability/campaign/conditions/p010-basictone.env\n?? tools/observability/campaign/conditions/text-edr-preview.env"
+    },
+    {
+      "command": "git rev-parse HEAD",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "8175b58a1887f07a5227aea123012c9ef2fc0cc5"
+    },
+    {
+      "command": "timeout 10s adb get-state || true",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "device"
+    },
+    {
+      "command": "timeout 10s frida --version || true",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "17.9.11"
+    },
+    {
+      "command": "python3 --version",
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "Python 3.12.3"
+    },
+    {
+      "command": "test -x tools/observability/strace/strace.aarch64",
+      "exit_code": 1,
+      "stderr": "",
+      "stdout": ""
+    }
+  ]
+}

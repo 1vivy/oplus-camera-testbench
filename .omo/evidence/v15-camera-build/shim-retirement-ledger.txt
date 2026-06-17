@@ -1,0 +1,20 @@
+v15 shim retirement ledger
+Generated: 2026-06-16 local MDT
+
+Component: libapsfixup
+Decision: KEEP-INTERIM for v1.5
+Evidence: /home/vivy/oplus-final/reference/campaign/p010-basictone/direct-20260616-201523
+Reason:
+- getAlgoAPI is still reached through libapsfixup.so+0x1878.
+- The direct P010/BasicTone pass still tombstoned at BasicTone_OGL::saveOutImg(Image*)+252.
+- The run did not prove the required descriptor/plane tuple or pitch invariants for no-shim retirement.
+- Fresh logs show APS memory/metadata bridge failures: pfnAPSMemHWAcquire NULL, pfnAPSMemHWRelease NULL, and metadata res -2.
+Retirement gate:
+- Re-run without libapsfixup only after the upstream/root fix proves P010 allocation, non-null descriptor, Cb-Y == stride*alignedHeight, pitch1 == pitch0, valid ArcSoft IO, and no BasicTone tombstone.
+
+Component: libBasicTonePhoto framing
+Decision: TREAT_AS_DOWNSTREAM_SYMPTOM_UNTIL_APS_GEOMETRY_IS_FIXED
+Evidence: /home/vivy/oplus-final/reference/campaign/p010-basictone/direct-20260616-201523
+Reason:
+- BasicTone is the crashing boundary, but APS memory/metadata failures happen in the same fresh run window.
+- The correct near-term approach is a bounded interim fix plus root-cause work, not assuming BasicTone itself is the only faulty layer.

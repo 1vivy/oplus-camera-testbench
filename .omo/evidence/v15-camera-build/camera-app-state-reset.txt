@@ -1,0 +1,53 @@
+Camera app local-state reset
+Generated: 2026-06-16T19:51:53-06:00
+Workspace: /home/vivy/oplus-final
+Package: com.oplus.camera
+APK path: /system_ext/priv-app/OplusCamera/OplusCamera.apk
+Status: RESET_AND_PERMISSION_REPAIRED
+
+Reason
+- User authorized destructive local app-state reset because interrupted campaign/probe work can leave OplusCamera stuck on an unsafe setting.
+- This reset affects app data/preferences only. No partitions, overlays, or persist.* properties were written.
+
+Actions
+- `adb shell am force-stop com.oplus.camera`
+- `adb shell pm clear com.oplus.camera` -> `Success`
+- Regranted runtime permissions:
+  - android.permission.CAMERA
+  - android.permission.RECORD_AUDIO
+  - android.permission.ACCESS_FINE_LOCATION
+  - android.permission.ACCESS_COARSE_LOCATION
+  - android.permission.READ_MEDIA_IMAGES
+  - android.permission.READ_MEDIA_VIDEO
+  - android.permission.READ_MEDIA_VISUAL_USER_SELECTED
+  - android.permission.BLUETOOTH_SCAN
+  - android.permission.BLUETOOTH_CONNECT
+- Repaired appops:
+  - CAMERA
+  - RECORD_AUDIO
+  - FINE_LOCATION
+  - COARSE_LOCATION
+  - READ_MEDIA_IMAGES
+  - READ_MEDIA_VIDEO
+  - MANAGE_EXTERNAL_STORAGE
+  - SYSTEM_ALERT_WINDOW
+  - BLUETOOTH_SCAN
+  - BLUETOOTH_CONNECT
+
+Verification
+- Device attached: `adb get-state` -> `device`.
+- Shell context: `uid=0(root) ... context=u:r:su:s0`.
+- Runtime permissions after reset show `granted=true` for CAMERA, RECORD_AUDIO, location, media images/video, visual user selected, and Bluetooth scan/connect.
+- Appops after reset show allow/foreground for camera, audio, location, media, manage external storage, overlay, and Bluetooth scan/connect.
+- Launch probe: `monkey -p com.oplus.camera -c android.intent.category.LAUNCHER 1` focused `com.oplus.camera/com.oplus.camera.Camera`.
+- Screenshot probe size: `2019796` bytes.
+- Final cleanup: `am force-stop com.oplus.camera`; foreground returned to launcher.
+- Host process scan found no persistent `run_condition`, `app_probe_capture`, `validate_modes`, `drive_cycle`, `frida -U`, `logcat`, `obs-capture`, or `obs-enable` processes beyond the scan command itself.
+
+Hypotheses
+- H4 local bad/stuck app setting: mitigated by `pm clear`.
+- H5 permission/appop denial after reset: mitigated and verified with runtime permission plus appops output.
+- H6 leftover capture/probe process: refuted by process scans before and after reset.
+
+Cleanup
+- Camera app force-stopped after verification so the next campaign starts from a clean launch.

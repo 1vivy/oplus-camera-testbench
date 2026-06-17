@@ -1,0 +1,83 @@
+# Todo 5 - EDR/SF and preview-delivery direct grounding
+
+Status: CAPTURED_WITH_BLOCKERS
+Generated: 2026-06-16T20:16:00-06:00
+
+User override applied: do not run a broad campaign. Use the observability/testbench scripts as a reference, drive the app directly, keep real-time logcat attached, and extract implementation-grade signals.
+
+## Artifacts
+
+- EDR direct run: `reference/campaign/edr-hdr/direct-20260616-200012/`
+- Preview first direct run: `reference/campaign/preview-baseline/direct-20260616-200218/`
+- Preview safe-probe rerun: `reference/campaign/preview-baseline/direct-20260616-200800-safeprobe/`
+- Latest pointers:
+  - `.omo/evidence/v15-camera-build/todo5-edr-direct-latest.txt`
+  - `.omo/evidence/v15-camera-build/todo5-preview-safeprobe-latest.txt`
+
+## EDR/SF Findings
+
+- `trace_edr_invocation.log` resolved and hooked Java `OplusEdrUtils` plus native `libgui.so` EDR entry points.
+- Native `setExtendedRangeBrightness` fired, so the write-side path exists.
+- `OplusEdrUtils.getBlastSurfaceControl(GLRootView)` returned `null`.
+- `sf_post.txt` reports HDR events with `desiredRatio(1.00)` and no useful camera foreground layer in the final dump.
+- `focus_post.txt` and `scene.png` are tainted by post-run launcher foreground; they are not accepted as screenshot proof.
+
+Implementation signal: prioritize `oplus-fwk` EDR/SurfaceControl contract work before native `surfaceflinger` blob or 4x4/OEM ABI escalation. The direct evidence says Java BLAST/scalar gating is not satisfying the app call site, while SF remains ratio 1.0.
+
+## Preview Findings
+
+- `trace_preview_delivery.js` syntax check passed after the original-recursion probe fix.
+- The safe rerun produced six one-second preview windows before crash:
+  - `getOplus`: sum 718, window range 116-124
+  - `hbClose`: sum 867, window range 27-176
+  - `imgClose`: sum 0
+  - `acqOk`: sum 179, window range 29-30
+  - `acqNull`: sum 0
+- `probe_getoplushwbuffer.log` confirms `SurfaceImage.getOplusHardwareBuffer` is present in this build.
+- The prior direct run produced one `[BRIDGE] SurfaceImage.getOplusHardwareBuffer() -> android.hardware.HardwareBuffer@...` hit before the old recursive hook crashed.
+
+Implementation signal: `getOplusHardwareBuffer` absence/fallback is not the current preview denominator. Preview delivery reaches the Oplus bridge and ImageReader acquire path. The missing `Image.close` cadence and app crashes remain the relevant downstream/ABI focus.
+
+## Blocking Runtime Crash
+
+The app repeatedly crashes with:
+
+`java.lang.NoSuchMethodError: No virtual method startBackgroundRunning(Landroid/content/Context;ILcom/oplus/osense/task/BgRunningCallback;)V in class Lcom/oplus/osense/OsenseResEventClient`
+
+Crash stack:
+
+- `com.oplus.camera.performance.statistics.Performance.requestLongTimeTaskMode(Performance.java:50)`
+- `CaptureDeferStrategyExecutor`
+- `StrategyEventManager`
+
+Source comparison:
+
+- Local `infiniti-camera-port/repos/android_hardware_oplus/oplus-fwk/src/com/oplus/osense/OsenseResEventClient.java` lacks `startBackgroundRunning(Context,int,BgRunningCallback)`, `stopBackgroundRunning(Context,int)`, and `unregisterEventCallback(OsenseEventCallback)`.
+- Reference `refs/op15ix/android_hardware_oplus/oplus-fwk/src/com/oplus/osense/OsenseResEventClient.java` contains those methods.
+
+Implementation signal: add the missing Osense ABI in `oplus-fwk` as a small v1.5 framework compatibility fix. This is separate from MotionPhoto and stays on the requested framework vector.
+
+## Probe Safety Fix
+
+The first preview probe pass crashed because Frida replacements recursively called hooked Java methods. The testbench scripts were patched to call captured overloads instead:
+
+- `tools/frida/trace_preview_delivery.js`
+- `tools/frida/probe_getoplushwbuffer.js`
+
+The patched trace still destabilizes ART after enough hot-path Java hook traffic, so preview counters are accepted only as short-window denominator evidence, not as a stable manual QA pass.
+
+## Adversarial Checks
+
+- stale_state: PASS. Evidence is from fresh direct runs on 2026-06-16 after camera app state reset.
+- misleading_success_output: PASS. Launcher `focus_post`/screenshots are explicitly rejected; crashes are blockers, not hidden.
+- hung_commands: PASS. The one leftover `adb logcat` PID from the direct rerun was killed by PID and a process scan returned no persistent capture/probe/logcat processes.
+- repeated_interruptions: PASS. Latest-pointer files and direct run directories make the evidence restartable.
+- flaky_tests: BLOCKED_BY_USER_OVERRIDE. No N=3 campaign rerun was performed; this was intentionally a direct testbench capture.
+- dirty_worktree: PASS_WITH_SCOPE. Tooling edits are limited to Frida probe safety plus existing validator work; product source was not changed in Todo 5.
+
+## Cleanup Receipt
+
+- Camera app force-stopped after direct runs.
+- Frida PIDs launched by the direct run were killed by saved PID.
+- `adb logcat` PID `883576` from the safe-probe run was killed directly.
+- Process scan after cleanup found no persistent `run_condition`, `app_probe_capture`, `validate_modes`, `drive_cycle`, `frida -U`, `logcat`, `obs-capture`, or `obs-enable` process.

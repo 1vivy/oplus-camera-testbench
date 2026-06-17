@@ -1,0 +1,9 @@
+COMMAND javac -d /tmp/todo8-osense-javac/out <android stubs> <event stubs> BgRunningCallback.java OsenseResEventClient.java
+RESULT javac_exit=0
+/tmp/todo8-osense-javac/out/android/content/Context.class
+/tmp/todo8-osense-javac/out/android/os/Bundle.class
+/tmp/todo8-osense-javac/out/com/oplus/osense/OsenseResEventClient.class
+/tmp/todo8-osense-javac/out/com/oplus/osense/eventinfo/EventConfig.class
+/tmp/todo8-osense-javac/out/com/oplus/osense/eventinfo/OsenseEventCallback.class
+/tmp/todo8-osense-javac/out/com/oplus/osense/task/BgRunningCallback.class
+CLEANUP removed /tmp/todo8-osense-javac

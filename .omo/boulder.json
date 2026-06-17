@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "active_work_id": "v15-camera-build",
+  "works": {
+    "v15-camera-build": {
+      "work_id": "v15-camera-build",
+      "active_plan": ".omo/plans/v15-camera-build.md",
+      "plan_name": "v15-camera-build",
+      "session_ids": [
+        "codex:019ed288-425a-7822-a3d0-1478e4bf4022"
+      ],
+      "status": "active",
+      "worktree_path": null
+    }
+  }
+}

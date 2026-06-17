@@ -1,0 +1,7 @@
+FAIL OsenseResEventClient.startBackgroundRunning(Context,int,BgRunningCallback)
+FAIL OsenseResEventClient.stopBackgroundRunning(Context,int)
+FAIL OsenseResEventClient.unregisterEventCallback(OsenseEventCallback)
+PASS OplusEdrUtils.getBlastSurfaceControl delegates to SurfaceView.getSurfaceControl
+PASS OplusEdrUtils.setEdrSdrRatio calls Transaction.setExtendedRangeBrightness
+RESULT FAIL
+MISSING OsenseResEventClient.startBackgroundRunning(Context,int,BgRunningCallback); OsenseResEventClient.stopBackgroundRunning(Context,int); OsenseResEventClient.unregisterEventCallback(OsenseEventCallback)

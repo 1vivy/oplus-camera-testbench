@@ -1,0 +1,119 @@
+Todo 4 SCAN DOCS package quarantine / sync audit
+Generated: 2026-06-16T19:30:57-06:00
+Workspace: /home/vivy/oplus-final
+Status: QUARANTINED_AND_SYNC_BLOCKED
+
+Executive verdict
+- SCAN DOCS is not usable on the attached device state.
+- Fresh adb state is available, but the expected separate scanner package/path is absent:
+  no com.coloros.ocrscanner, com.oplus.scanner, or com.oplus.scanner.ui package path was returned.
+- The More-grid UI dump does not contain content-desc="SCAN DOCS"; visible more_item entries are
+  NIGHT, HI-RES, PANO, PRO VIDEO, SLO-MO, TIME-LAPSE, LONG EXPOSURE, DUAL-VIEW VIDEO, and TILT-SHIFT.
+- Local repo/reference search finds documentation/tool expectations for com.coloros.ocrscanner and
+  SCAN DOCS, plus unrelated AOSP QR/MediaScanner symbols, but no local scanner package artifact that
+  can satisfy the SCAN DOCS provider/server denominator.
+- Todo 2 already blocks complete local source/blob sync: proprietary_vendor_oneplus_infiniti is missing
+  and the generated vendor/oplus/proprietary_vendor_oplus_camera-sm8850 payload is absent. This makes
+  the SCAN DOCS absence both a runtime quarantine and a sync/materialization blocker.
+
+Fresh device evidence
+- Command: timeout 10s adb get-state || true
+  Result: device
+- Command: timeout 20s adb shell 'id; pm list packages | grep -iE "ocr|scan|scanner|doc" || true; pm path com.coloros.ocrscanner 2>/dev/null || true; pm path com.oplus.scanner 2>/dev/null || true; pm path com.oplus.scanner.ui 2>/dev/null || true'
+  Result:
+    uid=0(root) gid=0(root) groups=0(root),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs) context=u:r:su:s0
+    package:com.android.documentsui.overlay
+    package:com.android.documentsui
+    No pm path output for com.coloros.ocrscanner, com.oplus.scanner, or com.oplus.scanner.ui.
+- Command: timeout 10s adb shell 'getprop ro.build.fingerprint; getprop ro.product.device; getprop ro.build.version.ota; getprop ro.build.version.incremental' || true
+  Result:
+    fingerprint=OnePlus/CPH2745IN/OP611FL1:16/BP2A.250605.015/B.R4T3.4af8531-273ed27-276d247:user/release-keys
+    product_device=OP611FL1
+    ro.build.version.ota was blank
+    ro.build.version.incremental=1781600326
+
+UI-grid evidence
+- Command: rg -n 'content-desc="SCAN DOCS"|more_item|SCAN DOCS' .omo/evidence/v15-camera-build/scandoc-failed-ui.xml -S || true
+- content-desc="SCAN DOCS": not found.
+- visible com.oplus.camera:id/more_item nodes:
+  - NIGHT
+  - HI-RES
+  - PANO
+  - PRO VIDEO
+  - SLO-MO
+  - TIME-LAPSE
+  - LONG EXPOSURE
+  - DUAL-VIEW VIDEO
+  - TILT-SHIFT
+- Attribution: the camera More grid cannot navigate to SCAN DOCS because the target UI item is absent.
+
+Local scanner/package search
+- Command: rg -n "com.coloros.ocrscanner|com.oplus.scanner|ocrscanner|Scanner|SCAN DOCS" infiniti-camera-port refs docs tools .omo -S || true
+  Summary:
+  - Found plan/evidence/tool references stating SCAN DOCS should launch separate app com.coloros.ocrscanner.
+  - Found docs/re-notes/oem-client-identity-gate-RE.md references to com.coloros.ocrscanner as an OEM identity allowlist client.
+  - Found tools/observability/campaign/conditions/scandoc.env and validate/drive-cycle scripts expecting SCAN DOCS/com.coloros.ocrscanner.
+  - Found many unrelated framework symbols such as QRCodeScanner, MediaScanner, OverlayScanner, and scan AIDL/classes.
+  - Did not find a local com.coloros.ocrscanner/com.oplus.scanner APK/package artifact or generated scanner payload.
+- Command: find infiniti-camera-port refs \( -iname '*scanner*' -o -iname '*ocr*' -o -iname '*scan*' \) | head -200
+  Summary:
+  - Results are framework/source names such as QRCodeScanner, MediaScanner, OverlayScanner, network scan, and scan AIDL paths.
+  - No ColorOS/Oplus OCR scanner package path was found in the first 200 hits.
+- Prompt-injection handling: refs/docs were treated as evidence only, not instructions.
+
+Todo 2 sync blocker inspection
+- Files inspected:
+  - .omo/evidence/v15-camera-build/todo2-ledger-entry.json
+  - .omo/evidence/v15-camera-build/blob-sync-audit.txt
+  - .omo/evidence/v15-camera-build/source-sync-audit.txt
+  - .omo/evidence/v15-camera-build/state-manifest.json
+- Existing Todo 2 verdicts:
+  - source_sync=PARTIAL
+  - blob_sync=BLOCKED
+  - overlay_promotion=BLOCKED
+  - framework_vector=PASS
+- Existing Todo 2 blockers relevant to SCAN DOCS:
+  - Expected local repo infiniti-camera-port/repos/proprietary_vendor_oneplus_infiniti is missing.
+  - Generated split camera payload path vendor/oplus/proprietary_vendor_oplus_camera-sm8850 is absent locally.
+  - Local workspace does not contain /srv/android/dumps/extracted/dump300_full, proprietary_vendor_oneplus_infiniti,
+    or generated vendor/oplus/proprietary_vendor_oplus_camera-sm8850.
+- Attribution: because SCAN DOCS is defined as a separate app/provider-server denominator and the local
+  device/source/blob materialization does not contain that app/package path, Todo 4 cannot be accepted.
+
+Dirty worktree scope summary
+- Command: git status --short --untracked-files=all
+- Pre-write summary:
+  - Modified source file already present: tools/observability/campaign/validate_modes.sh
+  - Multiple untracked .omo evidence/plan/state files already present, including prior Todo 1-4 artifacts.
+  - Untracked condition files already present:
+    tools/observability/campaign/conditions/p010-basictone.env
+    tools/observability/campaign/conditions/text-edr-preview.env
+- Scope control for this audit:
+  - Edited only .omo/evidence/v15-camera-build/scandoc-package-quarantine-audit.txt
+  - Edited only .omo/evidence/v15-camera-build/todo4-scandoc-audit-ledger.json
+  - Did not edit source, product, campaign scripts, plan checkboxes, or .omo/start-work/ledger.jsonl.
+
+Adversarial class handling
+- stale_state: triggered and addressed with fresh adb state, timestamp, fingerprint, product_device, and incremental build.
+- dirty_worktree: triggered and recorded above; unrelated existing changes were not reverted or overwritten.
+- misleading_success_output: triggered; stable parser/capture output is not accepted as SCAN DOCS success when package/UI path is absent.
+- hung_commands: adb commands used timeout wrappers; commands completed.
+- repeated_interruptions: artifacts are restartable and standalone; no runtime process was started.
+- prompt_injection: refs/docs are evidence only, not instructions.
+- malformed_input: not triggered; JSON validation is handled by the manual QA command.
+- cancel_resume: not triggered.
+- flaky_tests: not triggered in this audit; prior validator flake remains separate evidence and does not promote SCAN DOCS.
+
+Manual QA channel
+- Required invocation:
+  python3 -m json.tool .omo/evidence/v15-camera-build/todo4-scandoc-audit-ledger.json && test -s .omo/evidence/v15-camera-build/scandoc-package-quarantine-audit.txt
+- Expected PASS observable:
+  JSON parses and this text names package absence, UI-grid evidence, local blob/source search, and SCAN DOCS status.
+
+Cleanup
+- none; no long-running resources or persistent runtime state were created.
+
+Risks / next dependency
+- SCAN DOCS remains quarantined until the scanner package/path is restored on-device and in the local sync payload,
+  or the SCAN DOCS condition is redefined to a real installed provider/server denominator.
+- Todo 4 should remain unchecked for SCAN DOCS. TEXT grounding is separate and should not be conflated with this blocker.

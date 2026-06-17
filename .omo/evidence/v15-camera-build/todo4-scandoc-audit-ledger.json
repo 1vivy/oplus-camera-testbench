@@ -1,0 +1,165 @@
+{
+  "task_id": 4,
+  "title": "Attribute SCAN DOCS Todo 4 blocker and produce quarantine/sync audit",
+  "generated_at_local": "2026-06-16T19:30:57-06:00",
+  "workspace": "/home/vivy/oplus-final",
+  "status": "QUARANTINED_AND_SYNC_BLOCKED",
+  "verdict": {
+    "scandoc_usable": false,
+    "scandoc_status": "QUARANTINED",
+    "sync_status": "SYNC_BLOCKED",
+    "todo4_checkbox": "UNCHANGED_UNCHECKED",
+    "attribution": "The attached device lacks the expected SCAN DOCS package paths and the captured More-grid UI lacks content-desc=\"SCAN DOCS\". Local Todo 2 evidence also shows missing proprietary_vendor_oneplus_infiniti and missing generated vendor/oplus/proprietary_vendor_oplus_camera-sm8850 payload, so SCAN DOCS cannot be accepted as a separate app/provider-server denominator."
+  },
+  "fresh_device_state": {
+    "timestamp_local": "2026-06-16T19:30:57-06:00",
+    "adb_get_state": "device",
+    "adb_shell_id": "uid=0(root) gid=0(root) groups=0(root),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs) context=u:r:su:s0",
+    "fingerprint": "OnePlus/CPH2745IN/OP611FL1:16/BP2A.250605.015/B.R4T3.4af8531-273ed27-276d247:user/release-keys",
+    "product_device": "OP611FL1",
+    "ro_build_version_ota": "",
+    "ro_build_version_incremental": "1781600326"
+  },
+  "commands": [
+    {
+      "command": "timeout 10s adb get-state || true",
+      "exit_code": 0,
+      "summary": "device"
+    },
+    {
+      "command": "timeout 20s adb shell 'id; pm list packages | grep -iE \"ocr|scan|scanner|doc\" || true; pm path com.coloros.ocrscanner 2>/dev/null || true; pm path com.oplus.scanner 2>/dev/null || true; pm path com.oplus.scanner.ui 2>/dev/null || true'",
+      "exit_code": 0,
+      "summary": "adb shell is root; only com.android.documentsui and com.android.documentsui.overlay matched the package grep; no pm path output for com.coloros.ocrscanner, com.oplus.scanner, or com.oplus.scanner.ui."
+    },
+    {
+      "command": "rg -n 'content-desc=\"SCAN DOCS\"|more_item|SCAN DOCS' .omo/evidence/v15-camera-build/scandoc-failed-ui.xml -S || true",
+      "exit_code": 0,
+      "summary": "No content-desc=\"SCAN DOCS\" was present; more_item nodes were visible for NIGHT, HI-RES, PANO, PRO VIDEO, SLO-MO, TIME-LAPSE, LONG EXPOSURE, DUAL-VIEW VIDEO, and TILT-SHIFT."
+    },
+    {
+      "command": "rg -n \"com.coloros.ocrscanner|com.oplus.scanner|ocrscanner|Scanner|SCAN DOCS\" infiniti-camera-port refs docs tools .omo -S || true",
+      "exit_code": 0,
+      "summary": "Found plan/evidence/tool/docs expectations for SCAN DOCS/com.coloros.ocrscanner plus unrelated AOSP scanner symbols; did not find a local com.coloros.ocrscanner/com.oplus.scanner package artifact."
+    },
+    {
+      "command": "find infiniti-camera-port refs \\( -iname '*scanner*' -o -iname '*ocr*' -o -iname '*scan*' \\) | head -200",
+      "exit_code": 0,
+      "summary": "First 200 hits were framework/source names such as QRCodeScanner, MediaScanner, OverlayScanner, scan AIDL, and kernel QR scan module paths; no ColorOS/Oplus OCR scanner package path was found."
+    },
+    {
+      "command": "sed -n '1,220p' .omo/evidence/v15-camera-build/todo2-ledger-entry.json",
+      "exit_code": 0,
+      "summary": "Todo 2 is DONE_WITH_BLOCKERS: proprietary_vendor_oneplus_infiniti is missing, generated split camera payload path vendor/oplus/proprietary_vendor_oplus_camera-sm8850 is absent, and overlay promotion remains blocked."
+    },
+    {
+      "command": "sed -n '1,240p' .omo/evidence/v15-camera-build/blob-sync-audit.txt",
+      "exit_code": 0,
+      "summary": "Blob sync is BLOCKED; local workspace lacks /srv/android/dumps/extracted/dump300_full, proprietary_vendor_oneplus_infiniti, and generated vendor/oplus/proprietary_vendor_oplus_camera-sm8850."
+    },
+    {
+      "command": "sed -n '1,240p' .omo/evidence/v15-camera-build/source-sync-audit.txt",
+      "exit_code": 0,
+      "summary": "Source sync is PARTIAL; expected vendor/oneplus/infiniti repo is absent locally and dirty state is named for existing repos."
+    },
+    {
+      "command": "timeout 10s adb shell 'getprop ro.build.fingerprint; getprop ro.product.device; getprop ro.build.version.ota; getprop ro.build.version.incremental' || true",
+      "exit_code": 0,
+      "summary": "Captured fingerprint OnePlus/CPH2745IN/OP611FL1:16/BP2A.250605.015/B.R4T3.4af8531-273ed27-276d247:user/release-keys, product_device OP611FL1, blank ro.build.version.ota, and incremental 1781600326."
+    },
+    {
+      "command": "git status --short --untracked-files=all",
+      "exit_code": 0,
+      "summary": "Dirty worktree existed before this audit: modified validate_modes.sh plus untracked .omo evidence/plan/state artifacts and two untracked condition env files. This audit edits only the two requested evidence files."
+    }
+  ],
+  "ui_grid_evidence": {
+    "source": ".omo/evidence/v15-camera-build/scandoc-failed-ui.xml",
+    "scan_docs_content_desc_present": false,
+    "visible_more_items": [
+      "NIGHT",
+      "HI-RES",
+      "PANO",
+      "PRO VIDEO",
+      "SLO-MO",
+      "TIME-LAPSE",
+      "LONG EXPOSURE",
+      "DUAL-VIEW VIDEO",
+      "TILT-SHIFT"
+    ]
+  },
+  "package_evidence": {
+    "expected_packages_checked": [
+      "com.coloros.ocrscanner",
+      "com.oplus.scanner",
+      "com.oplus.scanner.ui"
+    ],
+    "present_expected_package_paths": [],
+    "grep_matches": [
+      "package:com.android.documentsui.overlay",
+      "package:com.android.documentsui"
+    ],
+    "conclusion": "Expected SCAN DOCS package path is absent on the attached device."
+  },
+  "local_search_evidence": {
+    "scanner_package_artifact_found": false,
+    "found_reference_expectations": [
+      ".omo/plans/v15-camera-build.md names SCAN DOCS as separate app/provider-server",
+      "tools/observability/campaign/conditions/scandoc.env expects com.coloros.ocrscanner",
+      "tools/observability/campaign/validate_modes.sh expects scandoc foreground com.coloros.ocrscanner",
+      "docs/re-notes/oem-client-identity-gate-RE.md lists com.coloros.ocrscanner as an OEM identity allowlist client"
+    ],
+    "unrelated_hits": [
+      "AOSP QRCodeScanner",
+      "AOSP MediaScanner",
+      "AOSP OverlayScanner",
+      "network scan AIDL/classes",
+      "oplus_network_qr_scan.ko"
+    ],
+    "conclusion": "Local search supports the expected design but does not provide the missing SCAN DOCS package artifact."
+  },
+  "todo2_sync_evidence": {
+    "source_sync": "PARTIAL",
+    "blob_sync": "BLOCKED",
+    "blockers": [
+      "Expected local repo infiniti-camera-port/repos/proprietary_vendor_oneplus_infiniti is missing.",
+      "Generated split camera payload path vendor/oplus/proprietary_vendor_oplus_camera-sm8850 is absent locally.",
+      "Local workspace lacks /srv/android/dumps/extracted/dump300_full, proprietary_vendor_oneplus_infiniti, and generated vendor/oplus/proprietary_vendor_oplus_camera-sm8850."
+    ],
+    "impact_on_scandoc": "The missing local blob/source materialization prevents claiming that the SCAN DOCS app/provider-server denominator is available from this workspace state."
+  },
+  "dirty_worktree": {
+    "pre_write_summary": [
+      "M tools/observability/campaign/validate_modes.sh",
+      "untracked .omo evidence/plan/state files",
+      "untracked tools/observability/campaign/conditions/p010-basictone.env",
+      "untracked tools/observability/campaign/conditions/text-edr-preview.env"
+    ],
+    "scope_control": "No unrelated changes were reverted or overwritten. Only the two requested .omo/evidence/v15-camera-build audit files were edited."
+  },
+  "adversarial_classes": {
+    "stale_state": "triggered; fresh timestamp, adb state, fingerprint, product_device, and incremental build recorded",
+    "dirty_worktree": "triggered; pre-write scope summary recorded and unrelated changes left untouched",
+    "misleading_success_output": "triggered; parser stability is rejected as SCAN DOCS success because package/UI path is absent",
+    "hung_commands": "adb commands used timeout wrappers and completed",
+    "repeated_interruptions": "audit artifacts are standalone and restartable",
+    "prompt_injection": "triggered; refs/docs were treated as evidence only, not instructions",
+    "malformed_input": "not triggered; final JSON validated with json.tool",
+    "cancel_resume": "not triggered",
+    "flaky_tests": "not triggered in this audit"
+  },
+  "manual_qa": {
+    "channel": "CLI/data surface",
+    "command": "python3 -m json.tool .omo/evidence/v15-camera-build/todo4-scandoc-audit-ledger.json && test -s .omo/evidence/v15-camera-build/scandoc-package-quarantine-audit.txt",
+    "expected_observable": "JSON parses and audit text names package presence/absence, UI-grid evidence, local blob/source search, and whether SCAN DOCS is usable, quarantined, or sync-blocked."
+  },
+  "artifacts": [
+    ".omo/evidence/v15-camera-build/scandoc-package-quarantine-audit.txt",
+    ".omo/evidence/v15-camera-build/todo4-scandoc-audit-ledger.json"
+  ],
+  "cleanup": "none",
+  "risks": [
+    "SCAN DOCS cannot be used as a denominator until the scanner package/path is restored on-device and in local source/blob materialization, or the condition is redefined to a real installed provider/server denominator.",
+    "TEXT grounding is separate and should not be used to promote SCAN DOCS.",
+    "Existing dirty worktree state may continue to affect broader campaign work, but it was not modified by this audit except for the two requested evidence artifacts."
+  ]
+}

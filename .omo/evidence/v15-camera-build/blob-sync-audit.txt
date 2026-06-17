@@ -1,0 +1,59 @@
+Todo 2 blob sync audit
+Generated: 2026-06-16T18:10:31-06:00
+Plan: .omo/plans/v15-camera-build.md Todo 2
+Audit status summary: BLOCKED
+
+Summary
+- PASS: proprietary_vendor_oneplus_sm8850-common exists locally and representative blob artifacts were hashed.
+- PARTIAL: .300 payload provenance is source-backed by infiniti-camera-port/ITERATION-LOG.md, but not fully materialized in this workspace.
+- BLOCKED: proprietary_vendor_oneplus_infiniti is missing locally, and the generated split camera payload path vendor/oplus/proprietary_vendor_oplus_camera-sm8850 is absent locally.
+- BLOCKED for downstream Todo 13: cannot claim a complete local source/blob sync until the missing local blob repos/generated payloads are present or the build orchestrator accounts for server-side sync/extraction.
+
+Expected blob-bearing paths
+| expected role | local path | present | branch/ref | HEAD | dirty state | blocker status |
+|---|---|---:|---|---|---|---|
+| device-specific OnePlus 15 blobs | infiniti-camera-port/repos/proprietary_vendor_oneplus_infiniti | missing | missing | missing | missing | BLOCKER: required expected repo absent |
+| common SM8850 blobs | infiniti-camera-port/repos/proprietary_vendor_oneplus_sm8850-common | present | lineage-23.2-cam-final...origin/lineage-23.2-cam-final | d090e4f0c0a3c06abf5206610761b438384b8648 | clean | none |
+| camera source/pin layer | infiniti-camera-port/repos/vendor_oplus_camera | present | lineage-23.2-cam-final | dd3ca871aa2bedd6ed5dff8917e541f4082e0fb0 | DIRTY: ?? .omc/ | source layer present; generated payload absent |
+| generated split Oplus camera payload | vendor/oplus/proprietary_vendor_oplus_camera-sm8850 or infiniti-camera-port/repos/*proprietary_vendor_oplus_camera-sm8850* | missing | missing | missing | missing | BLOCKER: refs/vendor_oplus_camera-sm8850/opluscamera.mk inherits vendor/oplus/proprietary_vendor_oplus_camera-sm8850/camera/camera-vendor.mk, but no local generated path was found |
+
+.300 payload provenance
+- Iteration log states v1.3 used full 16.0.8.300: OTA at /srv/android/dumps/downloads/infiniti_300_ota.zip, extracted to /srv/android/dumps/extracted/dump300_full (= CPH2745_16.0.8.300, internal 11.A.42).
+- Iteration log states device blobs -> 300 for proprietary_vendor_oneplus_infiniti via upstream ae44d63b "Update from OOS 11.A.42", with 300 camera.oemlayer.v2/libalogencrypt re-added and makefile regen.
+- Iteration log states build recipe requires sync cam-final + run device extract and camera extract against /srv/android/dumps/extracted/dump300_full.
+- Local workspace does not contain /srv/android/dumps/extracted/dump300_full, proprietary_vendor_oneplus_infiniti, or generated vendor/oplus/proprietary_vendor_oplus_camera-sm8850. Therefore the .300 source is SOURCE-BACKED by notes but not locally complete.
+
+Representative present blob hashes
+| artifact | sha256 | file/build id evidence |
+|---|---|---|
+| infiniti-camera-port/repos/proprietary_vendor_oneplus_sm8850-common/proprietary/odm/lib64/libdolbyencoderprocessor.so | 73225f671cea641b0470606e1cc803642c03eb30e23041486b1b50db202e371d | ELF aarch64, BuildID 94e86c2f563a431467257cedd007c445 |
+| infiniti-camera-port/repos/proprietary_vendor_oneplus_sm8850-common/proprietary/vendor/lib64/libgralloc.qti.so | 565e5756098a9b2b8e022a7093ef9abe7e9de02e3ccb397da6e79e7aa7bfe897 | ELF aarch64, BuildID 98b2b3b640d0327e5c4f6cdd45fa52b5 |
+| infiniti-camera-port/repos/proprietary_vendor_oneplus_sm8850-common/proprietary/vendor/lib64/libcamerapoweroptfeature.so | bf8e9d83766f05fb760ba25984a735c812cfcb5dbade6b1eaff1848f63869ba4 | ELF aarch64, BuildID 091dd942e500b5da3e8420b3662f5cf2 |
+| infiniti-camera-port/repos/proprietary_vendor_oneplus_sm8850-common/proprietary/system_ext/lib64/libimscamera_jni.so | 7fa4e827b24b8a0c85fdd59f64208e434c7c18bd2b2dcd9ab606b05c40865b29 | ELF aarch64, BuildID e130b9792790e964a673c81ba0c526f8 |
+
+Generated camera payload search
+- Command run: find . -path '*/proprietary_vendor_oplus_camera-sm8850*' -o -path '*/vendor/oplus/proprietary_vendor_oplus_camera-sm8850*'
+- Result: no paths found.
+- Command run: find infiniti-camera-port/repos refs -path '*/proprietary/*' -type f \( -name 'OplusCamera.apk' -o -name 'camera.oemlayer.v2.so' -o -name 'libAlgoProcess.so' -o -name 'libapsfixup.so' -o -name 'camera-vendor.mk' \) -print
+- Result: no matching generated camera artifacts found locally.
+- Command run: git -C infiniti-camera-port/repos/vendor_oplus_camera lfs ls-files; git -C refs/vendor_oplus_camera-sm8850 lfs ls-files.
+- Result: vendor_oplus_camera has no LFS entries listed; refs/vendor_oplus_camera-sm8850 has reference LFS entries under configs/lib64/libQnn*. These are reference/support blobs, not the generated camera payload.
+
+Prompt-injection and reference handling
+- refs/vendor_oplus_camera-sm8850/opluscamera.mk and proprietary-files.txt were read as reference claims only.
+- The comment in refs/vendor_oplus_camera-sm8850/opluscamera.mk that inherits vendor/oplus/proprietary_vendor_oplus_camera-sm8850/camera/camera-vendor.mk is treated as path/provenance evidence, not as permission to edit or generate files.
+
+Adversarial class record
+- stale_state: addressed by timestamp, branch/ref/HEAD table, and representative hashes.
+- dirty_worktree: triggered for vendor_oplus_camera source layer (?? .omc/) and named in the table.
+- misleading_success_output: triggered; missing generated payload and missing proprietary_vendor_oneplus_infiniti are BLOCKERs, not PASS.
+- prompt_injection: triggered; refs/vendor docs are reference claims only, not instructions.
+- malformed_input: not applicable; no blob parser was run.
+- flaky_tests: not applicable; no device/runtime tests.
+- hung_commands: not applicable; file/git/hash commands completed.
+- repeated_interruptions: not applicable.
+- scope_creep: not applicable; evidence files only.
+- destructive_action: not applicable; read-only inspection plus evidence-file writes only.
+
+Cleanup
+- none; no persistent resources started.

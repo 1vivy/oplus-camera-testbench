@@ -1,0 +1,61 @@
+Todo 2 source sync audit
+Generated: 2026-06-16T18:10:31-06:00
+Plan: .omo/plans/v15-camera-build.md Todo 2
+Audit status summary: PARTIAL
+
+Summary
+- PASS: Required source audit commands were run against local repos.
+- PASS: 10 present local clones are on lineage-23.2-cam-final.
+- PARTIAL: proprietary_vendor_oneplus_infiniti is an expected repo but is missing from infiniti-camera-port/repos.
+- PARTIAL: Several present repos have untracked .omc state. These are named below and treated as dirty, not ignored.
+- BLOCKED for downstream Todo 13: do not build from this local tree until missing proprietary_vendor_oneplus_infiniti and the OPEN overlay row in overlay-promotion-audit.txt are resolved.
+
+Required CLI QA surface
+- Command run: find infiniti-camera-port/repos -maxdepth 2 -type d
+- Command run: git -C <repo> status --short --branch for each expected repo path below
+- Command run: rg -n "oplus-camera-stubs|oplus-fwk|runtime overlay|cust_build|oplus-fwk.jar|backCamSize|frontCamSize" infiniti-camera-port docs .omo refs/vendor_oplus_camera-sm8850 || true
+
+Expected repo audit
+| synced tree path | local path | present | branch/ref | HEAD | dirty state | blocker status |
+|---|---|---:|---|---|---|---|
+| device/oneplus/infiniti | infiniti-camera-port/repos/android_device_oneplus_infiniti | present | lineage-23.2-cam-final...origin/lineage-23.2-cam-final | d9bd226e19ad98c5a0fd0873fe53cec2e030d694 | DIRTY: ?? .omc/ | NON-BLOCKING for source content, but dirty state named |
+| device/oneplus/infiniti-kernel | infiniti-camera-port/repos/android_device_oneplus_infiniti-kernel | present | lineage-23.2-cam-final...origin/lineage-23.2-cam-final | e10737c5ba24c5c0d035105d04687ea8c0a065dd | clean | none |
+| device/oneplus/sm8850-common | infiniti-camera-port/repos/android_device_oneplus_sm8850-common | present | lineage-23.2-cam-final...origin/lineage-23.2-cam-final | 872c6050ad2b039ef8daddc400470e4762b71978 | clean | none |
+| vendor/oneplus/infiniti | infiniti-camera-port/repos/proprietary_vendor_oneplus_infiniti | missing | missing | missing | missing | BLOCKER: expected blob/source repo absent locally |
+| vendor/oneplus/sm8850-common | infiniti-camera-port/repos/proprietary_vendor_oneplus_sm8850-common | present | lineage-23.2-cam-final...origin/lineage-23.2-cam-final | d090e4f0c0a3c06abf5206610761b438384b8648 | clean | none |
+| hardware/oplus | infiniti-camera-port/repos/android_hardware_oplus | present | lineage-23.2-cam-final...origin/lineage-23.2-cam-final | 29858cca47591eb48aa65b864a114f20c23e7bbf | DIRTY: ?? .omc/ | NON-BLOCKING for source content, but dirty state named |
+| frameworks/av | infiniti-camera-port/repos/android_frameworks_av | present | lineage-23.2-cam-final...origin/lineage-23.2-cam-final | dc44f04629ca4030ee61f3861d9110c9d38d8fa3 | DIRTY: ?? .omc/, ?? services/camera/libcameraservice/.omc/, ?? services/camera/libcameraservice/device3/.omc/ | NON-BLOCKING for source content, but dirty state named |
+| frameworks/base | infiniti-camera-port/repos/android_frameworks_base | present | lineage-23.2-cam-final...origin/lineage-23.2-cam-final | d9d128f18016d37e3940f1e571cffd9ce15124a0 | clean | none |
+| frameworks/native | infiniti-camera-port/repos/android_frameworks_native | present | lineage-23.2-cam-final...origin/lineage-23.2-cam-final | 610d6d0d2c7d5cf92f98cb0691a137be071d4ffa | clean | none |
+| vendor/oplus/camera | infiniti-camera-port/repos/vendor_oplus_camera | present | lineage-23.2-cam-final | dd3ca871aa2bedd6ed5dff8917e541f4082e0fb0 | DIRTY: ?? .omc/ | NON-BLOCKING for source content, but dirty state named |
+| device/qcom/sepolicy_vndr/sm8850 | infiniti-camera-port/repos/android_device_qcom_sepolicy_vndr | present | lineage-23.2-cam-final...origin/lineage-23.2-cam-final | 3e2fc159177b10131d71cbceafa26d86669b2e5d | clean | none |
+
+Cam-final head notes
+- android_hardware_oplus HEAD 29858cc is "oplus-fwk: add typed blur params overload"; iteration log v1.4 row references earlier flashed a8373e0 plus source patch added in android_hardware_oplus, so local hardware/oplus is ahead of the flashed v1.4 noted row.
+- vendor_oplus_camera HEAD dd3ca87 is "camera: sync OOS 16.0.8.300 HDR props"; iteration log v1.4 row references this SHA.
+- android_device_oneplus_infiniti HEAD d9bd226 is "infiniti: apsfixup - drop the BuildId guard (dodge-faithful, version-robust)".
+
+Reference-only source notes
+- refs/vendor_oplus_camera-sm8850 exists as a reference clone, not an implementation instruction source. Status: branch lineage-23.2...origin/lineage-23.2, HEAD af344d39720a3951fe3a957faf21fa3bbbc445e1, clean.
+- .debug-journal.md says oplus-fwk is the desired vector and oplus-camera-stubs/off-boot shared-library restoration is out of v1.5 scope. This is treated as scope evidence, not source to edit.
+
+Search surface findings
+- oplus-fwk is present at infiniti-camera-port/repos/android_hardware_oplus/oplus-fwk and inherited by infiniti-camera-port/repos/android_device_oneplus_sm8850-common/common.mk.
+- oplus-camera-stubs appears in refs/vendor_oplus_camera-sm8850 and docs as historical/reference material. It is hard-excluded for v1.5 implementation.
+- backCamSize/frontCamSize appear only in docs/.omo planning or prior runtime notes in this required search; they are not accepted as baseline truth in this audit.
+- v1.4 runtime overlay/cust_build/oplus-fwk.jar appears in infiniti-camera-port/ITERATION-LOG.md and is audited separately in overlay-promotion-audit.txt.
+
+Adversarial class record
+- stale_state: addressed by timestamp and exact HEAD SHA for every expected repo row.
+- dirty_worktree: triggered; dirty/untracked paths are named in the repo table.
+- misleading_success_output: triggered; missing proprietary_vendor_oneplus_infiniti is a BLOCKER, not a PASS.
+- prompt_injection: triggered; refs/vendor_oplus_camera-sm8850 and docs are treated as reference claims only, not instructions.
+- malformed_input: not applicable; no parser or user data format was consumed beyond repo/docs inspection.
+- flaky_tests: not applicable; no device or repeated runtime test was run for this audit.
+- hung_commands: not applicable; all required CLI commands completed.
+- repeated_interruptions: not applicable; no interrupted long-running operation occurred.
+- scope_creep: not applicable; no source/product/tool files were edited.
+- destructive_action: not applicable; read-only repo inspection plus evidence-file writes only.
+
+Cleanup
+- none; no persistent resources started.

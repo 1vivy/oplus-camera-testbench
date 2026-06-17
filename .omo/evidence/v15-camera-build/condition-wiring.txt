@@ -1,0 +1,50 @@
+Todo 3 condition wiring evidence
+
+Scope:
+- Added tools/observability/campaign/conditions/text-edr-preview.env.
+- Added tools/observability/campaign/conditions/p010-basictone.env.
+- No changes made to tools/observability/campaign/conditions/scandoc.env.
+
+Condition intent:
+- text-edr-preview uses MODE=text, preserving TEXT as a com.oplus.camera mode. It declares app-side probes trace_edr_invocation, trace_preview_delivery, and probe_getoplushwbuffer.
+- p010-basictone uses MODE=p010, matching the existing P010/Pro two-shot surface. It preserves the existing P010 probe set trace_p010_planes, trace_arcsoft_io, and trace_dmabuf_alloc, and adds probe_basictone.
+
+Schema audit:
+- Both condition files use only existing schema keys: MODE, AE_LOCK, REPEAT_N, NOTE, EXTRA_PROBES.
+- No shell logic, command substitution, variable expansion, redirection, functions, or non-schema assignments were added to either condition file.
+
+Probe existence audit:
+- trace_edr_invocation -> tools/frida/trace_edr_invocation.js exists.
+- trace_preview_delivery -> tools/frida/trace_preview_delivery.js exists.
+- probe_getoplushwbuffer -> tools/frida/probe_getoplushwbuffer.js exists.
+- trace_p010_planes -> tools/frida/trace_p010_planes.js exists.
+- trace_arcsoft_io -> tools/frida/trace_arcsoft_io.js exists.
+- trace_dmabuf_alloc -> tools/frida/trace_dmabuf_alloc.js exists.
+- probe_basictone -> tools/frida/probe_basictone.js exists.
+
+SCAN DOCS audit:
+- scandoc.env remains provider/server separated and was not modified into a com.oplus.camera app-side condition.
+- Existing scandoc.env EXTRA_PROBES remains: hook_configure_streams probe_get_extension_opmode trace_dmabuf_alloc.
+
+Routing note:
+- Current campaign scripts route trace_edr_invocation, trace_preview_delivery, probe_getoplushwbuffer, trace_p010_planes, and trace_arcsoft_io as APP-side probes, and trace_dmabuf_alloc as provider-side.
+- probe_basictone.js exists and is declared by p010-basictone.env as required by Todo 3, but current run_condition.sh/app_probe_capture.sh routing does not list probe_basictone. Todo 3 scope forbids script logic changes, so this is recorded as a follow-up risk for the capture owner.
+
+Parser QA:
+- tools/observability/campaign/parse_condition.py --help is not implemented in this repo; it treats --help as a capture path and exits with "no run*/ab dirs under --help".
+- Import-safe parser check passed: parse_condition.py imports without executing main and exposes main.
+
+Adversarial classes:
+- malformed_input: checked via bash syntax for campaign scripts, import-safe parser check, schema-key audit, and probe-list basename existence checks.
+- stale_state: target condition files did not exist before this task; no existing condition file was overwritten.
+- dirty_worktree: status recorded before/after; edits kept to the two condition files and .omo/evidence/v15-camera-build artifacts.
+- misleading_success_output: every declared EXTRA_PROBES basename was checked against tools/frida/<probe>.js, rather than relying on script warnings.
+- flaky_tests: not applicable; no device campaign run was in scope for Todo 3.
+- hung_commands: not applicable; only local CLI checks were run, no device or adb capture loop.
+- race_conditions: not applicable; no concurrent device session or shared runtime state was started.
+- permission_denied: not applicable; no privileged device operations were attempted.
+- external_service: not applicable; no network or external service was used.
+- resource_exhaustion: not applicable; condition authoring and static checks only.
+- data_loss: not applicable; no destructive commands or partition/persist writes were used.
+- security_regression: not applicable; no executable logic or privilege boundary changed.
+- all_other_ultraqa_classes: not applicable; this Todo 3 slice only authored static condition/evidence files and did not run a device, network, concurrency, persistence, or production path.

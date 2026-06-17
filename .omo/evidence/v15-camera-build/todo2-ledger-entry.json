@@ -1,0 +1,72 @@
+{
+  "task_id": 2,
+  "task": "Audit source/blob sync, overlay provenance, and framework vector",
+  "timestamp": "2026-06-16T18:10:31-06:00",
+  "status": "DONE_WITH_BLOCKERS",
+  "artifacts": [
+    ".omo/evidence/v15-camera-build/source-sync-audit.txt",
+    ".omo/evidence/v15-camera-build/blob-sync-audit.txt",
+    ".omo/evidence/v15-camera-build/overlay-promotion-audit.txt",
+    ".omo/evidence/v15-camera-build/framework-vector-audit.txt",
+    ".omo/evidence/v15-camera-build/todo2-ledger-entry.json"
+  ],
+  "qa_surface": {
+    "commands_run": [
+      "find infiniti-camera-port/repos -maxdepth 2 -type d",
+      "git -C <repo> status --short --branch for all 11 expected repos, accounting for missing proprietary_vendor_oneplus_infiniti",
+      "rg -n \"oplus-camera-stubs|oplus-fwk|runtime overlay|cust_build|oplus-fwk.jar|backCamSize|frontCamSize\" infiniti-camera-port docs .omo refs/vendor_oplus_camera-sm8850 || true",
+      "find . -path '*/proprietary_vendor_oplus_camera-sm8850*' -o -path '*/vendor/oplus/proprietary_vendor_oplus_camera-sm8850*'",
+      "sha256sum representative present proprietary_vendor_oneplus_sm8850-common artifacts"
+    ],
+    "verification_commands": [
+      "test -s .omo/evidence/v15-camera-build/source-sync-audit.txt",
+      "test -s .omo/evidence/v15-camera-build/blob-sync-audit.txt",
+      "test -s .omo/evidence/v15-camera-build/overlay-promotion-audit.txt",
+      "test -s .omo/evidence/v15-camera-build/framework-vector-audit.txt",
+      "test -s .omo/evidence/v15-camera-build/todo2-ledger-entry.json",
+      "python3 -m json.tool .omo/evidence/v15-camera-build/todo2-ledger-entry.json"
+    ]
+  },
+  "verdicts": {
+    "source_sync": "PARTIAL",
+    "blob_sync": "BLOCKED",
+    "overlay_promotion": "BLOCKED",
+    "framework_vector": "PASS"
+  },
+  "blockers": [
+    "Expected local repo infiniti-camera-port/repos/proprietary_vendor_oneplus_infiniti is missing.",
+    "Generated split camera payload path vendor/oplus/proprietary_vendor_oplus_camera-sm8850 is absent locally.",
+    "v1.4 launch/capture smoke runtime overlay row remains OPEN in infiniti-camera-port/ITERATION-LOG.md; Todo 13 must remain blocked until PROMOTED or REVERTED."
+  ],
+  "dirty_worktree": [
+    "infiniti-camera-port/repos/android_device_oneplus_infiniti: ?? .omc/",
+    "infiniti-camera-port/repos/android_hardware_oplus: ?? .omc/",
+    "infiniti-camera-port/repos/android_frameworks_av: ?? .omc/, ?? services/camera/libcameraservice/.omc/, ?? services/camera/libcameraservice/device3/.omc/",
+    "infiniti-camera-port/repos/vendor_oplus_camera: ?? .omc/"
+  ],
+  "framework_vector": {
+    "enforced": "infiniti-camera-port/repos/android_hardware_oplus/oplus-fwk",
+    "hard_excluded": "oplus-camera-stubs off-boot shared-library vector for v1.5 implementation"
+  },
+  "overlay_rows": [
+    {
+      "id": "v1.4-launch-capture-smoke",
+      "state": "OPEN",
+      "source": "infiniti-camera-port/ITERATION-LOG.md",
+      "condition": "Do not unblock Todo 13 while this remains OPEN."
+    }
+  ],
+  "adversarial_classes": {
+    "stale_state": "triggered; timestamps, branch refs, and SHAs recorded",
+    "dirty_worktree": "triggered; dirty paths named",
+    "misleading_success_output": "triggered; missing repos/payloads and OPEN overlay are blockers, not PASS",
+    "prompt_injection": "triggered; refs/vendor docs treated as reference claims only",
+    "malformed_input": "not applicable; no structured untrusted input parser was used",
+    "flaky_tests": "not applicable; no device/runtime test was run",
+    "hung_commands": "not applicable; all commands completed",
+    "repeated_interruptions": "not applicable; no interrupted operation occurred",
+    "scope_creep": "not applicable; evidence files only",
+    "destructive_action": "not applicable; read-only inspection plus evidence writes only"
+  },
+  "cleanup": "none"
+}

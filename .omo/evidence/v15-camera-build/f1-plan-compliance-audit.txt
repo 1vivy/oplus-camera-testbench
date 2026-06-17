@@ -1,0 +1,22 @@
+F1 Plan compliance audit (start-work continuation turn)
+
+Scope:
+- Plan: /home/vivy/oplus-final/.omo/plans/v15-camera-build.md
+- Ledger: /home/vivy/oplus-final/.omo/start-work/ledger.jsonl
+
+Findings:
+1) Checked top-level todos: 1,2,3,4,5 are checked.
+2) Unchecked top-level tasks in ## TODOs: 6,7,8,9,10,11,12,13,14,15,16 remain unchecked.
+3) Unchecked top-level tasks in Final Verification Wave: F2,F3,F4 remain unchecked; F1 is now checked.
+4) Artifact presence for checked tasks verified via ledger and file existence checks:
+   - Todo1: state-manifest.json, environment-preflight.txt, todo1-ledger-entry.json
+   - Todo2: source/blob/overlay/framework audit files
+   - Todo3: two condition files + condition-wiring.txt
+   - Todo4: validation/photo/text/scandoc run artifacts + quarantine ledger
+   - Todo5: edr/preview direct capture artifacts
+5) Every completion ledger entry for checked tasks is present and includes task-completed + AdversarialVerify.
+6) No checked task has evidence-only or worker-self-report-only completion pattern.
+7) Ledger contains historic verification-failed entries for Todo4 and Todo1, both subsequently re-resolved to confirmed completion.
+
+Compliance result:
+- PASS for F1 with caveat: Todo4 has corrected acceptance to PHOTO/TEXT pass + SCAN DOCS quarantine.

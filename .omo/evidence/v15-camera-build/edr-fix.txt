@@ -1,0 +1,88 @@
+# Todo 8 - EDR/SF Preview Fix Decision and Source Patch
+
+Status: SOURCE_FIX_IMPLEMENTED_WITH_DEPLOYMENT_QA_DEFERRED
+Timestamp: 2026-06-16T21:00:00-06:00
+
+Decision:
+- Implement the smallest Java framework-vector fix in `oplus-fwk`.
+- Do not touch `android_frameworks_native` or SurfaceFlinger in v1.5 at this step.
+- Do not restore `oplus-camera-stubs`.
+- Do not implement MotionPhoto, 725bd52, or additional preview native handlers.
+
+Why:
+- Pre-change runtime evidence shows the preview route repeatedly crashes on a missing boot-jar ABI:
+  `NoSuchMethodError: OsenseResEventClient.startBackgroundRunning(Context,int,BgRunningCallback)`.
+- Local source lacked:
+  `startBackgroundRunning(Context,int,BgRunningCallback)`
+  `stopBackgroundRunning(Context,int)`
+  `unregisterEventCallback(OsenseEventCallback)`
+- Reference `refs/op15ix/android_hardware_oplus/oplus-fwk` carries those Osense methods.
+- Current v1.5 source already contains the scalar EDR source shape:
+  `OplusEdrUtils.getBlastSurfaceControl(SurfaceView)` delegates to `view.getSurfaceControl()`.
+  `OplusEdrUtils.setEdrSdrRatio(...)` calls `SurfaceControl.Transaction.setExtendedRangeBrightness(...)`.
+- The live device still runs the pre-v1.5 framework jar, so post-change EDR/SF device proof cannot be valid until Todo 13/14 builds and deploys v1.5.
+
+Changed file:
+- `infiniti-camera-port/repos/android_hardware_oplus/oplus-fwk/src/com/oplus/osense/OsenseResEventClient.java`
+
+Patch:
+- Added `android.content.Context` import.
+- Added `com.oplus.osense.task.BgRunningCallback` import.
+- Added no-op `unregisterEventCallback(OsenseEventCallback)`.
+- Added no-op `startBackgroundRunning(Context,int,BgRunningCallback)`.
+- Added false-returning `stopBackgroundRunning(Context,int)`.
+
+Faltering hypotheses and current status:
+- H1 Osense ABI crash blocks preview route: CONFIRMED_FOR_SOURCE_FIX.
+  Evidence: runtime NoSuchMethodError plus source missing methods; post-change static verifier and javac proof pass.
+- H2 OplusEdrUtils scalar source is absent: REFUTED_FOR_CURRENT_SOURCE.
+  Evidence: current source already delegates BLAST surface and calls `setExtendedRangeBrightness`.
+- H3 native frameworks/native EDR read-side is required immediately: DEFERRED.
+  Evidence: current live device did not run the patched v1.5 source, so scalar+BLAST falsifier cannot be executed yet. Native escalation requires a rebuilt v1.5 post-change capture showing scalar path fires but ratio/headroom/SF still fail.
+
+Filing the device QA gap:
+- Todo 13 must build a v1.5 artifact containing the patched `oplus-fwk`.
+- Todo 14 must deploy that artifact or approved overlay.
+- Todo 15 must replay `edr-hdr` and verify:
+  `getBlastSurfaceControl` is non-null or a new documented reason exists.
+  `setEdrFlags` fires or scalar-only source is explicitly insufficient.
+  ratio/headroom changes from 1.0 when expected.
+  SF post shows intended HDR/SDR ratio/dimming.
+  screenshots/action logs show preview exposure improvement without still-photo regression.
+
+Verification:
+- Red/static proof:
+  `.omo/evidence/v15-camera-build/todo8-prechange-static-proof.txt`
+  Result: FAIL on three missing Osense ABI methods; PASS on current EDR scalar source shape.
+- Green/static proof:
+  `.omo/evidence/v15-camera-build/todo8-postchange-static-proof.txt`
+  Result: PASS on all three Osense ABI methods and EDR scalar source checks.
+- Javac proof:
+  `.omo/evidence/v15-camera-build/todo8-osense-javac-proof.txt`
+  Result: `javac_exit=0`, temp compile tree removed.
+- Discovery proof:
+  `.omo/evidence/v15-camera-build/todo8-build-test-proof.txt`
+  Result: `oplus-fwk` is a Soong `java_library`, `PRODUCT_BOOT_JARS += oplus-fwk`, no local test seam found, small target after full Android env is `m oplus-fwk`.
+- Diff hygiene:
+  `git diff --check` passed after the patch.
+
+Subagent results:
+- EDR/SF explorer: inconclusive and stale. It incorrectly routed to final verification state; not used as proof.
+- Osense explorer: partially useful only for the high-level ABI-gap conclusion; parent independently verified the source and runtime evidence.
+- Build/test lane: useful as a blocked preflight, but it wrote a `blocked` ledger entry before implementation. This source-fix entry supersedes that blocked leaf status for Todo 8.
+
+Adversarial checks:
+- stale_state: PASS. Evidence and source checks were rerun in this turn after Todo 7.
+- dirty_worktree: PASS_WITH_SCOPE. The nested `oplus-fwk` repo now has exactly one product source edit for Todo 8; existing `.omo`/tooling dirty state is preserved.
+- misleading_success_output: PASS. This file does not claim live-device post-change success; deployment QA is explicitly carried to Todos 13-15.
+- hung_commands: PASS. Static verifier, javac proof, grep, and diff checks completed; no broad campaign or Android build was started.
+- repeated_interruptions: PASS. Red/green artifacts and source diff are durable under `.omo/evidence/v15-camera-build/`.
+- flaky_tests: not applicable for source verifier; no timing-sensitive test was added.
+- malformed_input: not applicable; no parser/schema changed.
+- prompt_injection: not applicable; local docs/reference sources were used only as evidence.
+- cancel_resume: not applicable; no resumable runtime flow was launched.
+
+Cleanup:
+- Temporary javac tree `/tmp/todo8-osense-javac` was removed.
+- No tmux/browser sessions, ports, Android builds, device overlays, partition writes, or `persist.*` writes were created.
+- Device scan remains at expected persistent `frida-server` and child crash-log monitor only.

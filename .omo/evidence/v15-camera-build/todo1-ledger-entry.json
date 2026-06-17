@@ -1,0 +1,105 @@
+{
+  "adversarial_classes": {
+    "cancel_resume": "N/A: no cancel/resume workflow transition was triggered",
+    "destructive_device_action": "N/A: only read-only adb/frida probes were used; no persist.* props or partition writes",
+    "dirty_worktree": "dirty/untracked root paths captured",
+    "flaky_tests": "N/A: Todo 1 preflight uses deterministic CLI/data checks, not campaign test retries",
+    "hung_commands": "adb, overlay, and frida-server probes used timeout wrappers",
+    "malformed_input": "N/A: no malformed external parser input was triggered",
+    "misleading_success_output": "exit codes, timeout flags, and blocker statuses are recorded; missing static strace and missing infiniti vendor repo are not marked PASS",
+    "prompt_injection": "N/A: no untrusted prompt-bearing input was executed",
+    "repeated_interruptions": "artifacts include schema, generation timestamps, source plan hash, and source ledger hash for restartability",
+    "scope_creep": "N/A: repair scope limited to the three owned evidence files",
+    "stale_state": "fresh timestamp and current .omo/plans/v15-camera-build.md sha256 recorded in state and ledger"
+  },
+  "artifacts": [
+    ".omo/evidence/v15-camera-build/state-manifest.json",
+    ".omo/evidence/v15-camera-build/environment-preflight.txt",
+    ".omo/evidence/v15-camera-build/todo1-ledger-entry.json"
+  ],
+  "cleanup": "none",
+  "commands": [
+    {
+      "command": "git status --short --untracked-files=all",
+      "exit_code": 0,
+      "result": "Root dirty/untracked paths captured in state-manifest.json."
+    },
+    {
+      "command": "git rev-parse HEAD",
+      "exit_code": 0,
+      "result": "8175b58a1887f07a5227aea123012c9ef2fc0cc5"
+    },
+    {
+      "command": "sha256sum .omo/plans/v15-camera-build.md",
+      "exit_code": 0,
+      "result": "8dae311595f0631eb61db0a917b6bc8a076046df9c28c0ea96a50fc5d1172460"
+    },
+    {
+      "command": "timeout 5s adb get-state || true",
+      "exit_code": 0,
+      "result": "device"
+    },
+    {
+      "command": "timeout 8s adb shell getprop ro.build.fingerprint",
+      "exit_code": 0,
+      "result": "OnePlus/CPH2745IN/OP611FL1:16/BP2A.250605.015/B.R4T3.4af8531-273ed27-276d247:user/release-keys"
+    },
+    {
+      "command": "frida --version || true",
+      "exit_code": 0,
+      "result": "17.9.11"
+    },
+    {
+      "command": "timeout 8s frida-ps -U",
+      "exit_code": 0,
+      "result": "Device process list returned; frida-server reachable."
+    },
+    {
+      "command": "python3 --version",
+      "exit_code": 0,
+      "result": "Python 3.12.3"
+    },
+    {
+      "command": "test -x tools/observability/strace/strace.aarch64",
+      "exit_code": 1,
+      "result": "tools/observability/strace/strace.aarch64 exists but is not executable"
+    }
+  ],
+  "environment_preflight": {
+    "line_contract": "Every non-empty line begins exactly PASS, PARTIAL, or BLOCKED.",
+    "path": ".omo/evidence/v15-camera-build/environment-preflight.txt",
+    "sha256": "bbf8d578efa2aecdfcbf4ee8b6615d6ea1f956d468f9ce914c05a00d25f5a5cf"
+  },
+  "manual_qa": {
+    "data_artifact_paths": [
+      ".omo/evidence/v15-camera-build/state-manifest.json",
+      ".omo/evidence/v15-camera-build/environment-preflight.txt"
+    ],
+    "device_readiness": "PARTIAL: adb device attached and fingerprint readable; static strace unavailable and proprietary_vendor_oneplus_infiniti absent.",
+    "surface": "CLI/data artifacts"
+  },
+  "risks": [
+    "Overall gate remains PARTIAL because tools/observability/strace/strace.aarch64 is present but not executable.",
+    "Expected generated vendor repo infiniti-camera-port/repos/proprietary_vendor_oneplus_infiniti is absent locally.",
+    "Root and several nested repos contain pre-existing untracked runtime/evidence files."
+  ],
+  "source_ledger": {
+    "edited": false,
+    "path": ".omo/start-work/ledger.jsonl",
+    "sha256": "1c2a48ecf3923e12c27a24249b3d9a7723b149e870bed58e298ce67c89df7599"
+  },
+  "source_plan": {
+    "path": ".omo/plans/v15-camera-build.md",
+    "sha256": "8dae311595f0631eb61db0a917b6bc8a076046df9c28c0ea96a50fc5d1172460"
+  },
+  "state_manifest": {
+    "generated_at_utc": "2026-06-17T00:33:41Z",
+    "overall_status": "PARTIAL",
+    "path": ".omo/evidence/v15-camera-build/state-manifest.json",
+    "sha256": "f8644c75e8ad606cb690c912356ebb54fc0e0a7afdd8ec3c56297fa5112ba0a6"
+  },
+  "status": "PARTIAL",
+  "task_id": 1,
+  "timestamp_utc": "2026-06-17T00:33:41Z",
+  "title": "Create the v1.5 false-pass state manifest and environment gate"
+}

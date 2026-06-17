@@ -1,0 +1,71 @@
+Todo 8 build/test discovery and failing-first proof
+Generated: 2026-06-17T02:43:38Z
+Status: BLOCKED_FOR_IMPLEMENTATION_IN_TEST_ENGINEER_LEAF
+
+Scope
+- Inspected: infiniti-camera-port/repos/android_hardware_oplus/oplus-fwk
+- No production source edits were made.
+- No Android build was invoked.
+
+Build and static surfaces
+- Android.bp defines one Soong module:
+  - type: java_library
+  - name: oplus-fwk
+  - installable: true
+  - srcs: src/**/*.aidl and src/**/*.java
+- oplus-fwk.mk adds:
+  - PRODUCT_PACKAGES += oplus-fwk
+  - PRODUCT_BOOT_JARS += oplus-fwk
+- Device wiring:
+  - infiniti-camera-port/repos/android_device_oneplus_sm8850-common/common.mk inherits hardware/oplus/oplus-fwk/oplus-fwk.mk.
+- Safe small target after Android env setup/lunch:
+  - m oplus-fwk
+- Read-only/static checks available before build:
+  - find infiniti-camera-port/repos/android_hardware_oplus/oplus-fwk -maxdepth 3 -type f \( -name 'Android.bp' -o -name '*.mk' -o -name '*Test*.java' \) -print
+  - rg -n "java_library|android_library|oplus-fwk|OsenseResEventClient|OplusEdrUtils" infiniti-camera-port/repos/android_hardware_oplus/oplus-fwk
+  - node --check tools/frida/trace_edr_invocation.js tools/frida/trace_preview_delivery.js tools/frida/probe_getoplushwbuffer.js
+
+Existing tests / unit seam
+- No *Test*.java, test/, tests/, java_test, or android_test seam was found inside oplus-fwk.
+- Because this is a boot-jar Android framework stub surface and there is no local test module, the failing-first proof is device Manual-QA plus static source proof unless a new test harness is deliberately added later.
+
+Pre-change failing proof
+- Osense:
+  - Current source has registerEventCallback(OsenseEventCallback, EventConfig), unregisterEventCallback(OsenseEventCallback, EventConfig), requestSceneAction(Bundle), and requestInstantCpuLoad().
+  - Current source lacks startBackgroundRunning(Context, int, BgRunningCallback), stopBackgroundRunning(Context, int), and unregisterEventCallback(OsenseEventCallback).
+  - Runtime evidence contains repeated NoSuchMethodError for startBackgroundRunning(Context,int,BgRunningCallback) in /system/framework/oplus-fwk.jar.
+- EDR:
+  - Current OplusEdrUtils returns null for non-SurfaceView getSurfaceControl callers and false for setEdrImageSize, setEdrImageMetadata, setEdrAuxiliaryImage, setEdrViewTransform, and setEdrGainmapInfo.
+  - Existing runtime evidence records OplusEdrUtils.getBlastSurfaceControl(GLRootView) -> null.
+  - Existing SF evidence records desiredRatio(1.00), so EDR/SF is not proven fixed by current source.
+
+Manual-QA channel
+- Channel: CLI/data surface.
+- Tool/invocation:
+  find infiniti-camera-port/repos/android_hardware_oplus/oplus-fwk -maxdepth 3 -type f \( -name 'Android.bp' -o -name '*.mk' -o -name '*Test*.java' \) -print && rg -n "java_library|android_library|oplus-fwk|OsenseResEventClient|OplusEdrUtils" infiniti-camera-port/repos/android_hardware_oplus/oplus-fwk
+- PASS observable:
+  - oplus-fwk module and product wiring are identified.
+  - test-seam status is identified.
+- Result: PASS for discovery, BLOCKED for implementation completion.
+
+Adversarial classes
+- stale_state: PASS. Current source and existing v15 evidence were reread this turn.
+- dirty_worktree: PASS_WITH_SCOPE. Dirty worktree exists, but no production source edits were made or reverted.
+- misleading_success_output: PASS. Discovery PASS is not treated as Todo 8 implementation PASS.
+- hung_commands: PASS. Only bounded read-only commands were run; process scan found no persistent capture/probe/logcat process.
+- malformed_input: not applicable; no input parser/schema changed.
+- prompt_injection: not applicable; local docs/evidence were treated only as evidence.
+- cancel_resume: not applicable; no resumable runtime flow was started.
+- flaky_tests: not applicable; no tests were run or added.
+- repeated_interruptions: not applicable; durable evidence file records current stop state.
+
+Cleanup receipt
+- No processes, tmux sessions, browser contexts, temp dirs, Android builds, device captures, runtime overlays, persist.* writes, or production source edits were created.
+
+DoneClaim
+- Done for the test-engineer leaf deliverable: Todo 8 build/test surfaces and failing-first proof strategy are identified.
+- Not done for the parent checkbox: Todo 8 requires production implementation and post-change device proof.
+
+AdversarialVerify
+- verdict: needs-human-review
+- reason: This leaf lane cannot implement production code or spawn native child agents. Parent executor must perform implementation after this failing-first proof.

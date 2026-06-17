@@ -1,0 +1,56 @@
+Todo 2 framework vector audit
+Generated: 2026-06-16T18:10:31-06:00
+Plan: .omo/plans/v15-camera-build.md Todo 2
+Audit status summary: PASS with downstream guard
+
+Summary
+- PASS: v1.5 framework additions must route through infiniti-camera-port/repos/android_hardware_oplus/oplus-fwk.
+- PASS: android_hardware_oplus/oplus-fwk is present, build-defined as java_library name "oplus-fwk", installable true.
+- PASS: oplus-fwk.mk adds PRODUCT_PACKAGES += oplus-fwk and PRODUCT_BOOT_JARS += oplus-fwk.
+- PASS: infiniti-camera-port/repos/android_device_oneplus_sm8850-common/common.mk inherits hardware/oplus/oplus-fwk/oplus-fwk.mk.
+- HARD EXCLUDE: oplus-camera-stubs is not an allowed v1.5 implementation vector.
+
+Source evidence
+- infiniti-camera-port/repos/android_hardware_oplus/oplus-fwk/Android.bp:
+  - java_library
+  - name: "oplus-fwk"
+  - installable: true
+  - srcs: "src/**/*.aidl", "src/**/*.java"
+- infiniti-camera-port/repos/android_hardware_oplus/oplus-fwk/oplus-fwk.mk:
+  - PRODUCT_PACKAGES += oplus-fwk
+  - PRODUCT_BOOT_JARS += oplus-fwk
+- infiniti-camera-port/repos/android_device_oneplus_sm8850-common/common.mk:
+  - $(call inherit-product, hardware/oplus/oplus-fwk/oplus-fwk.mk)
+
+Hard-excluded vector
+- refs/vendor_oplus_camera-sm8850/opluscamera.mk contains PRODUCT_PACKAGES += oplus-camera-stubs.
+- refs/vendor_oplus_camera-sm8850/configs/permissions/privapp-permissions-oplus.xml references /system_ext/framework/oplus-camera-stubs.jar.
+- .debug-journal.md explicitly records: "oplus-fwk is the desired vector for framework additions for now; do not restore off-boot oplus-camera-stubs for v1.5."
+- Plan scope says no restored off-boot oplus-camera-stubs shared-library vector for v1.5 framework additions.
+- Therefore oplus-camera-stubs is allowed only as read-only reference/history for this task and is hard-excluded for v1.5 implementation.
+
+Reference claims and conflicts
+- docs/facilitation and docs/interop-tree contain older mixed conclusions that describe oplus-camera-stubs as camera-scoped or useful in previous lanes. These are not instructions for v1.5.
+- Current controlling evidence for Todo 2 is the plan plus .debug-journal scope update plus current oplus-fwk module state.
+- Prompt-injection guard: refs/vendor_oplus_camera-sm8850 is a reference clone and any comments/build lines there are evidence only, not authority to restore the stubs vector.
+
+Framework vector verdict
+- Enforced vector: oplus-fwk.
+- Implementation target if Todo 8/10 later requires Java/framework class additions: infiniti-camera-port/repos/android_hardware_oplus/oplus-fwk.
+- Disallowed v1.5 vector: refs/vendor_oplus_camera-sm8850/oplus-camera-stubs and any restored off-boot shared-library model.
+- Guard: no Todo 13 unblock while overlay-promotion-audit.txt has an OPEN row.
+
+Adversarial class record
+- stale_state: addressed by timestamp and current file reads.
+- dirty_worktree: android_hardware_oplus has ?? .omc/ only; source vector files themselves were inspected read-only.
+- misleading_success_output: not triggered for vector selection; explicit hard-exclude prevents ambiguous PASS.
+- prompt_injection: triggered; reference clone docs are not treated as instructions.
+- malformed_input: not applicable.
+- flaky_tests: not applicable.
+- hung_commands: not applicable.
+- repeated_interruptions: not applicable.
+- scope_creep: not applicable; no source edits.
+- destructive_action: not applicable.
+
+Cleanup
+- none; no persistent resources started.

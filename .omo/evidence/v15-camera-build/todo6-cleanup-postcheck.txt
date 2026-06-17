@@ -1,0 +1,11 @@
+Todo6 cleanup postcheck
+Generated: 2026-06-16 local MDT after explicit kill of adb logcat PID 896337.
+
+Command:
+ps -eo pid=,args= | awk '/adb logcat|frida -U|run_condition|app_probe_capture|validate_modes|drive_cycle|obs-capture/ && $0 !~ /awk|ps -eo|zsh -c/ {print}'
+
+Observable:
+PASS - no matching persistent capture, frida, drive_cycle, validate_modes, or adb logcat processes were printed.
+
+Note:
+reference/campaign/p010-basictone/direct-20260616-201523/process_cleanup_check.txt captured the stale logcat before the explicit kill. This postcheck supersedes that run-local snapshot for cleanup status.

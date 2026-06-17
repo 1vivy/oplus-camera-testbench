@@ -1,0 +1,5 @@
+== validate_modes K=3 modes=[photo text scandoc p010 video8k] @ Tue Jun 16 19:11:04 MDT 2026 ==
+  photo        3/3  GRADUATE
+  text         3/3  GRADUATE
+  scandoc      0/3  FLAKY
+  p010         0/3  FLAKY

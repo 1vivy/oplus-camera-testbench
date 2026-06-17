@@ -1,0 +1,67 @@
+Todo 4 text/scandoc grounding summary
+Generated: 2026-06-16T19:22 MDT
+Status: BLOCKED / not complete
+
+Corrected validator finding:
+- Original Todo 4 validation reported 0/3 FLAKY for every mode because
+  tools/observability/campaign/validate_modes.sh hardcoded adb shell su -c.
+- This attached device already exposes adb shell as uid=0 and has no su binary in PATH, so the old
+  validator silently failed to run drive_cycle.sh and produced misleading all-zero results.
+- validate_modes.sh was patched to use plain adb shell when id -u == 0 and to preserve per-run diagnostics
+  under reference/validate_modes/<mode>/run*/.
+
+Current validation evidence:
+- bash -n tools/observability/campaign/validate_modes.sh: PASS.
+- validate_modes.sh 1 text scandoc: text 1/1 GRADUATE, scandoc 0/1 FLAKY.
+- validate_modes.sh 3 photo text scandoc p010 video8k was started only to verify the root-wrapper fix, then
+  interrupted once photo/text/scandoc/p010 evidence was sufficient. This was intentionally stopped to avoid
+  an unnecessary full campaign.
+- Latest exact report before interruption:
+  - photo 3/3 GRADUATE.
+  - text 3/3 GRADUATE.
+  - scandoc 0/3 FLAKY.
+  - p010 0/3 FLAKY (not required for PHOTO -> TEXT / SCAN DOCS grounding; leave for the P010 lane).
+
+TEXT evidence:
+- reference/validate_modes/text/run1..run3/verdict.txt all PASS with goto_main_mode TEXT OK,
+  foreground=com.oplus.camera, and >3 MB screenshots.
+- reference/campaign/text-edr-preview/verdict.json exists and is stable across 3 runs.
+- reference/campaign/text-edr-preview/app_probes/ contains trace_edr_invocation,
+  trace_preview_delivery, and probe_getoplushwbuffer logs.
+- TEXT is therefore grounded as an app-side com.oplus.camera mode for the PHOTO -> TEXT contrast.
+
+SCAN DOCS blocker:
+- reference/validate_modes/scandoc/run1..run3/verdict.txt all FAIL:
+  missing_marker=tap_desc 'SCAN DOCS' -> (, nav_failed, foreground_mismatch=com.coloros.ocrscanner.
+- reference/validate_modes/scandoc/run*/action.log shows goto_main_mode MORE OK followed by
+  tap_desc 'SCAN DOCS' -> NOT FOUND and enter_more_item 'SCAN DOCS' FAILED.
+- .omo/evidence/v15-camera-build/scandoc-failed-ui.xml shows the current More grid exposes NIGHT, HI-RES,
+  PANO, PRO VIDEO, SLO-MO, TIME-LAPSE, LONG EXPOSURE, DUAL-VIEW VIDEO, and TILT-SHIFT, but not SCAN DOCS.
+- adb package inspection found no com.coloros.ocrscanner / scanner package on this attached device.
+- Therefore SCAN DOCS cannot be accepted as a separate app/provider-server denominator on this local state.
+  This aligns with the Todo 2 source/blob sync blocker: the device/local blob state is not complete enough
+  to assume the scanner package/path exists.
+
+Parser/capture evidence:
+- reference/campaign/text-edr-preview/verdict.json exists and is stable across 3 runs.
+- reference/campaign/scandoc/verdict.json exists and is stable across 3 runs, but this is not enough to
+  promote SCAN DOCS because the UI/action evidence proves the intended SCAN DOCS app was not reached.
+
+Adversarial classes:
+- flaky_tests: partially fixed; validator now correctly graduates photo/text, but scandoc remains 0/3.
+- stale_state: fresh validation artifacts from 2026-06-16 19:11-19:21 MDT supersede the earlier all-zero report.
+- misleading_success_output: parser stability is not accepted as SCAN DOCS success because UI logs show nav failure.
+- hung_commands: the unnecessary full validator rerun was interrupted deliberately; no validate/run_condition/frida/logcat
+  process remains.
+- dirty_worktree: source edits are limited to validate_modes.sh; reference/evidence artifacts record the run.
+- repeated_interruptions: per-run diagnostics now persist, so the gate can resume without losing failure cause.
+
+Cleanup:
+- No validate_modes, drive_cycle, run_condition, app_probe_capture, frida -U, or logcat capture process remains.
+- Camera/scanner packages were force-stopped best-effort after interruption.
+
+Next required action:
+- Keep Todo 4 unchecked.
+- Treat TEXT as grounded for EDR/preview contrast work.
+- Quarantine SCAN DOCS until the scanner package/path is restored or the condition is redefined to a real
+  installed provider/server denominator.

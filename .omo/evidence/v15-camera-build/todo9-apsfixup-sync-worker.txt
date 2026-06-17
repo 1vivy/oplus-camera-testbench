@@ -1,0 +1,124 @@
+SUPERSEDED: 2026-06-16T21:06:31-06:00
+- This artifact recorded a temporary sync from refs/vendor_oplus_camera-sm8850/apsfixup.
+- That sync was reverted after user correction identified the intended dodge grounding as the BasicTone fix in 0004-dodge-More-patches-for-op-camera.patch, not the dirty sm8850 multi-guard libapsfixup work.
+- Current Todo9 correction evidence is .omo/evidence/v15-camera-build/p010-basictone-fix.txt.
+
+Todo 9 apsfixup sync worker evidence
+
+Scope:
+- Product files allowed for edit:
+  - infiniti-camera-port/repos/android_device_oneplus_infiniti/apsfixup/Android.bp
+  - infiniti-camera-port/repos/android_device_oneplus_infiniti/apsfixup/apsfixup.cpp
+- Evidence artifact:
+  - .omo/evidence/v15-camera-build/todo9-apsfixup-sync-worker.txt
+- Out of scope and not touched: MotionPhoto, 725bd52, oplus-camera-stubs, framework_av,
+  oplus-fwk, real device state, partitions, persist props.
+
+Static RED baseline before editing:
+- Command:
+  rg -n "ARC_SYMBOL_TFRSN|COPYMETA_GOT_OFF|STRLEN_GOT_OFF|ALGOPROC_DLSYM_GOT_OFF|lto: never" \
+    infiniti-camera-port/repos/android_device_oneplus_infiniti/apsfixup/Android.bp \
+    infiniti-camera-port/repos/android_device_oneplus_infiniti/apsfixup/apsfixup.cpp || true
+- Result:
+  No output. The current build-tree source lacks ARC_SYMBOL_TFRSN, COPYMETA_GOT_OFF,
+  STRLEN_GOT_OFF, ALGOPROC_DLSYM_GOT_OFF, and lto: never.
+
+Reference stale_state probe:
+- Command:
+  git -C refs/vendor_oplus_camera-sm8850 log -1 --oneline -- apsfixup
+- Result:
+  c3a2b11 apsfixup: widen P010 garbage-VA window to [0x60,0x7f] + ARC_TFRSN/strlen guards (fix turbo-hdr deferred-job SEGV)
+
+Dirty worktree baseline:
+- Command:
+  git status --short --untracked-files=all
+- Result:
+  Existing unrelated dirty state observed before edits, including modified tools/frida and
+  tools/observability files plus existing untracked .omo evidence/plan artifacts. No unrelated
+  files were reverted.
+
+Implementation:
+- Command:
+  cp refs/vendor_oplus_camera-sm8850/apsfixup/Android.bp \
+    infiniti-camera-port/repos/android_device_oneplus_infiniti/apsfixup/Android.bp
+- Command:
+  cp refs/vendor_oplus_camera-sm8850/apsfixup/apsfixup.cpp \
+    infiniti-camera-port/repos/android_device_oneplus_infiniti/apsfixup/apsfixup.cpp
+- Result:
+  Build-tree apsfixup Android.bp and apsfixup.cpp were mechanically synced from the vetted
+  sm8850 reference shim. Reference BasicTone comments remain inert/NEEDS-PROBE; no extra
+  BasicTone activation was added beyond the reference source.
+
+Post-sync marker verification:
+- Command:
+  rg -n "ARC_SYMBOL_TFRSN|COPYMETA_GOT_OFF|STRLEN_GOT_OFF|ALGOPROC_DLSYM_GOT_OFF|wrap_ogltone|lto: never" \
+    infiniti-camera-port/repos/android_device_oneplus_infiniti/apsfixup/Android.bp \
+    infiniti-camera-port/repos/android_device_oneplus_infiniti/apsfixup/apsfixup.cpp
+- Result:
+  Found:
+  - apsfixup.cpp:66 COPYMETA_GOT_OFF
+  - apsfixup.cpp:75 ARC_SYMBOL_TFRSN
+  - apsfixup.cpp:80 STRLEN_GOT_OFF
+  - apsfixup.cpp:85 ALGOPROC_DLSYM_GOT_OFF
+  - apsfixup.cpp:394 wrap_ogltone
+  Note: the Soong LTO setting is a block, not a literal single-line "lto: never" token.
+- Command:
+  rg -n "lto|never: true" \
+    infiniti-camera-port/repos/android_device_oneplus_infiniti/apsfixup/Android.bp
+- Result:
+  - Android.bp:26 lto: {
+  - Android.bp:27 never: true,
+
+Reference diff verification:
+- Command:
+  diff -u refs/vendor_oplus_camera-sm8850/apsfixup/apsfixup.cpp \
+    infiniti-camera-port/repos/android_device_oneplus_infiniti/apsfixup/apsfixup.cpp
+- Result:
+  No output; files match.
+- Command:
+  diff -u refs/vendor_oplus_camera-sm8850/apsfixup/Android.bp \
+    infiniti-camera-port/repos/android_device_oneplus_infiniti/apsfixup/Android.bp
+- Result:
+  No output; files match.
+
+Manual-QA channel:
+- CLI/data surface exact invocation:
+  diff -u refs/vendor_oplus_camera-sm8850/apsfixup/apsfixup.cpp infiniti-camera-port/repos/android_device_oneplus_infiniti/apsfixup/apsfixup.cpp && diff -u refs/vendor_oplus_camera-sm8850/apsfixup/Android.bp infiniti-camera-port/repos/android_device_oneplus_infiniti/apsfixup/Android.bp
+- Result:
+  PASS. Exit 0 with no output, so both diffs are empty after sync.
+
+Whitespace/static diff check:
+- Command:
+  git diff --check -- \
+    infiniti-camera-port/repos/android_device_oneplus_infiniti/apsfixup/Android.bp \
+    infiniti-camera-port/repos/android_device_oneplus_infiniti/apsfixup/apsfixup.cpp
+- Result:
+  PASS. Exit 0 with no output.
+- Command:
+  git -C infiniti-camera-port/repos/android_device_oneplus_infiniti diff --check -- \
+    apsfixup/Android.bp apsfixup/apsfixup.cpp
+- Result:
+  PASS. Exit 0 with no output.
+
+Scoped dirty-state receipt after sync:
+- Command:
+  git -C infiniti-camera-port/repos/android_device_oneplus_infiniti status --short --untracked-files=all -- \
+    apsfixup/Android.bp apsfixup/apsfixup.cpp
+- Result:
+  M apsfixup/Android.bp
+  M apsfixup/apsfixup.cpp
+- Evidence file status:
+  ?? .omo/evidence/v15-camera-build/todo9-apsfixup-sync-worker.txt
+
+Cleanup:
+- No device/app state touched.
+- No partitions or persist props touched.
+- No tmux sessions or long-running processes started.
+- No temp files or temp directories created, so no temp cleanup was required.
+
+Remaining risks:
+- libapsfixup remains an interim in-flight shim until APS descriptor/root fixes retire it.
+- BasicTone remains the reference inert/NEEDS-PROBE skeleton; this sync does not claim a live
+  BasicTone hook fix.
+- No device/runtime camera capture was run for this Todo 9 task; verification is bounded to the
+  requested local CLI/data surface and exact reference diff.

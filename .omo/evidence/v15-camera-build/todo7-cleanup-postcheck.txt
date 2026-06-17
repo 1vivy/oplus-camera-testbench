@@ -1,0 +1,19 @@
+Cleanup timestamp: 2026-06-16T20:37:32-06:00
+
+Actions:
+- Killed hung direct-capture parent PID 910914 and orphan adb shell drive-cycle PID 911134 earlier in the Todo 7 run.
+- Force-stopped com.oplus.camera after the failed VIDEO/8K navigation attempt.
+- Inspected device cmdlines for leftover logcat processes:
+  8248 logcat -b crash -B
+  14431 logcat -b all -v threadtime
+  16439 logcat -b all -v threadtime
+  17160 logcat -b all -v threadtime
+  27360 logcat -b all -v threadtime
+- Killed orphan capture logcats 14431, 16439, 17160, and 27360.
+- Preserved frida-server PID 8243 and its child crash-log monitor PID 8248.
+
+Final process scan:
+root          8243     1   15226076 127604 do_sys_poll         0 S frida-server
+root          8248  8243   10797612   4252 __skb_wait_for_more_packets 0 S logcat
+
+Result: PASS_WITH_NOTE. No direct capture, drive_cycle, app probe, provider probe, broad campaign, or com.oplus.camera process remains. The remaining logcat is the frida-server crash monitor, not a Todo 7 capture logcat.
