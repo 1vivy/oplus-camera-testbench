@@ -75,6 +75,39 @@ sections below remain CONFIRMED; only the "surviving root = gralloc metadata sea
 - **"Garbage scanline" as a single field-level root / a single fault** — RE-SCOPED. The raw LOS tombstones
   show THREE distinct faults that were being conflated (see Fault classes).
 
+## APS pipeline conceptual model — libAlgoProcess is a pure CONSUMER (2026-06-17, RE deep-dive + live)
+APS is a SHARED multi-generation engine (op11→op15): a **generic-facade → HW-plugin** dispatcher. Generic
+facades (`b2yCreatorProcessor` @0x1ca8ec-area, `b2yProcess`, the sibling `R2J` Raw→JPEG) tail-call device HW
+backends (`hwB2YCreateProcessorImpl` @0x608b74) via global client singletons. **"b2y" = bayer/buffer→YUV** —
+the SAT/fusion reprocess stage producing the P010 output. `b2yCreatorProcessor` is a 3-insn trampoline (loads
+the HW ctx at `AlgoProcessData[idx]+0xff8`, tail-calls the impl) — no geometry mutation itself.
+
+**Buffer source:** the fusion OUTPUT is **OEM-allocated** (cameraserver/CamX/CHI), NOT allocated by APS. APS
+receives an `AlgoProcessData` carrying a `vector<ApsBufferDesc>` (descriptors, geometry baked in) + an
+`APSParamsHolder` (string-keyed params). `getImageBufferDesc` (@0x2599b0) COPIES a pre-formed `ApsBufferDesc`
+out of that caller vector in the live parallel path.
+
+**The descriptor builder `camApsBufferDesc` (@0x1ca8ec):** `AHardwareBuffer_describe`→{fmt,w,h,stride}, then a
+format-switch — `0x36`/`0x7FA30C0A` (P010 linear/Venus)→**contiguous born-correct**; `0x20` (IMPL_DEFINED)→
+**chroma ZEROED**, deferred to the QCOM branch; RAW/NV12→`getMetaData`. Secondary remap reads the private-handle
+color-format `@+0x2c`. Gralloc abstraction: `APSGrallocUtils` (generic, IMapper@4.0 "default") + `APSGrallocQcomUtils`
+(QCOM color/dataspace via `qtigralloc`/`libqdMetaData`), `isQcomPlatform()` gate.
+
+**Consumers (libapsfixup's 4 patch sites):** `APSFormatConverterNeon::p010LSB2MSBNeon` (NEON shl#6, walk `w4·w5·3`),
+`APSFormatConverter::rotateMirror` (reads `stride@+0x24`/`chroma@+0x48`), `APSAlgoBase::prepareImage`
+(libAlgoInterface, copies descriptor→BasicTone `Image`, scanline→sliceHeight). They read geometry STRAIGHT from
+the handed-in descriptor and walk off it when it's garbage.
+
+**DECISIVE LIVE FINDING (OOS):** `camApsBufferDesc`, `getImageBufferDesc`, AND `APSBufferManager::getBufferDesc`
+all fire **0× per-capture** (hooked by export name; `AHardwareBuffer_lockPlanes` on the same buffer DOES fire).
+⇒ The `ApsBufferDesc` geometry is NOT produced in the per-capture libAlgoProcess path — it is built at
+session-config/init or by the **APS CLIENT** and handed in. **libAlgoProcess is a PURE CONSUMER of a descriptor
+produced UPSTREAM.** This is WHY every in-libAlgoProcess hypothesis (getPlaneLayout, output.alignment, the config
+map) came back symmetric-with-the-golden — the producer is elsewhere. **The geometry divergence lives in the APS
+CLIENT (`libAPSClient-jni`/`-cmd-jni`, marshalling `AlgoProcessData`) and the OEM cameraserver/CamX/CHI that
+feeds it.** NEXT RE TARGET (not libAlgoProcess): trace `AlgoProcessData`/`ApsBufferDesc` construction in
+`libAPSClient-*` + what the OEM camera stack hands it for the fusion buffer's geometry, OOS vs LOS.
+
 ## The byte-identity wall (nothing in the binary chain or kernel differs)
 - **Kernel:** LOS uses the **OOS prebuilt kernel** (user-confirmed) → no UBWCP-driver / SMMU / dma-heap /
   kernel-config divergence. No `ubwcp.ko` on either build (symmetric-absent).
