@@ -1,0 +1,20 @@
+# Live OOS 16.0.7.201 — APSJsonParser::sApsConfigParamsMap walk (2026-06-17)
+# Probe: read the EXPORTED static config map directly (no spawn needed; map persists post-init).
+# QUESTION: is com.oplus.aps.platform.output.alignment in the WORKING OOS APS config? -> NO.
+
+[map] sApsConfigParamsMap @ 0x7cd74c5c98  size=192
+[map][HIT] key="com.oplus.trbokeh.croprect.align"  (a bokeh crop key — NOT the P010 alignment)
+[map][HIT] key="com.oplus.qcom.platform.align"     (a platform-align key — NOT output.alignment)
+[map] walked=192  align/platform/output hits=2  (NEITHER is com.oplus.aps.platform.output.alignment)
+sampleKeys = com.oplus.aps.preview.gamma.smooth.process.enable, com.oplus.aps.turbohdr.sensorName,
+             com.oplus.get.crop.from.HR.reference.lib, com.oplus.sat.main.zoom.range, com.oplus.sat.ultrawide.zoom.range
+
+# VERDICT: com.oplus.aps.platform.output.alignment and com.oplus.aps.platform.alignment are ABSENT from the
+# WORKING OOS static APS config map. So getJsonMetadata(output.alignment) returns count=0 on OOS TOO — the
+# 0/0 default is taken on the golden as well. The "missing config key" is SYMMETRIC with the golden (same
+# class of red herring as getPlaneLayout/descriptor=0x0/getMetadata=-2). The alignment value that makes OOS
+# work is NOT a static config key. By elimination it is a RUNTIME source — camApsSetParameters /
+# APSParamsHolderImpl per-session injection by the OEM camera app, which is OEM-identity-gated. Leading
+# (INFERRED) root: OEM-identity-gated runtime param/metadata starvation (systemic — ties P010 to the
+# SAT-fusion identity / oemChimetadatas gaps). Conviction probe: read APSParamsHolderImpl/camApsGetParameters
+# OOS vs LOS, and trace camApsSetParameters at init (needs debug-app-wait spawn; post-attach misses it).
