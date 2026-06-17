@@ -128,6 +128,25 @@ pure runtime VALUE (mOutputAlignmentStride/Scanline=0 on LOS, fed from an unpinn
 device probes). Different in the P010 path ⇒ that's the root. NOTE: getPlaneLayout is DORMANT in APS, so the
 PLANE_LAYOUTS path may be moot; the live geometry is the lock (lockPlanes→mapper.qti, byte-identical) — which
 argues the framework diff is benign and the root is the runtime alignment value.
+**CONFIRMED (2026-06-17): framework lead DEAD.** LOS `frameworks_native` = stock LineageOS fork (no QTI-display
+patches); `GraphicBufferMapper::getPlaneLayouts` is a pure relay to `mMapper` (= byte-identical `mapper.qti`);
+P010 handling is stock AOSP. So the geometry libui returns IS the byte-identical mapper's. getPlaneLayout is
+dormant in APS regardless.
+
+## ⟦ STATIC RE EXHAUSTED — DEFINITIVE BOUND (2026-06-17) ⟧
+The entire STATIC space is now ruled out for the P010 geometry divergence: kernel (OOS prebuilt) · all VENDOR
+blobs byte-identical (CamX/CHI/oemlayer/gralloc.qti/mapper.qti/libcamerabuffer/libAlgoProcess/Interface/
+libAPSClient) · AOSP graphics framework differs by BuildId but RELAYS byte-identical mapper.qti (benign) ·
+props/config identical-or-no-op · static APS config (sApsConfigParamsMap) symmetric · Java OCS SDK innocent of
+geometry · identity gate satisfied (still crashes). Per the user's thought-exercise (regular photo ALSO crashes
+like masterraw without libapsfixup), the fault is the COMMON P010 alignment going to 0 on LOS. Since NOTHING
+static differs in the geometry chain, the divergence is a RUNTIME VALUE: `mOutputAlignmentStride/Scanline`
+(or the lock-derived stride/scanline feeding it) = 0 on LOS vs non-zero on OOS, from a source that leaves no
+static fingerprint. The one DYNAMIC divergence observed is the LOS pipeline instability (op_mode degenerate
+reconfigures + provider SIGABRT) — the P010 crash may be downstream of that. ⇒ NEXT EVIDENCE REQUIRES THE
+DEVICE: run `tools/frida/{track_gralloc_handle,aps_pathway_ruleout}.js` on LOS to catch the stage geometry hits
+0; or dump the `oplus_aps_addFrameBuff` lock-channel ApsBufferPlanes (stride/scanline) OOS-golden vs LOS. The
+probes are authored + ready; the static well is dry.
 
 ## Anchors
 - libAPSClient-jni: `oplus_aps_addFrameBuff`, `oplus_aps_setParameters`, keys `buffer_input_{width,height,stride,scanline}`,
