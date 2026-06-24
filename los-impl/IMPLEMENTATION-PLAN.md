@@ -190,6 +190,35 @@ the reduction is a *downstream verification* that a family's guard became dead c
 
 ---
 
+## 9 — R8 · face-beauty preview JNI load-path probe (S9) — **READY (smali probe-rewrite, ROOT PINNED)**
+
+| Field | Value |
+|-------|-------|
+| **Contract** | `com.oplus.camera.facebeauty.OplusFaceBeautyPreview.<clinit>` existence-gates `/product/lib64/libApsFaceBeautyPreviewProductJni.so` then `loadLibrary("ApsFaceBeautyPreviewProductJni")` (bare-name → SONAME). On LOS the guarded lib ships to `/system_ext/lib64` (`my_product→system_ext` remap), so the `/product/lib64` probe FAILS → unguarded in-APK `libApsFaceBeautyPreviewJni.so` fallback (no `FBInitFlag` async-init) → apply (`Slender2D_process`) before init → all-zero `FaceBeautyParams` → `lib2DSlender adjustParam+836` SIGSEGV-null (**#9**). |
+| **LOS-tree edit (i)** | **smali probe-string rewrite** → add a hunk under `vendor/oplus/camera/patches-sdk/` rewriting `smali/com/oplus/camera/facebeauty/OplusFaceBeautyPreview.smali` **L19** `"/product/lib64/libApsFaceBeautyPreviewProductJni.so"` → `"/system_ext/lib64/libApsFaceBeautyPreviewProductJni.so"`. The jar `com.oplus.camera.unit.sdk.jar` is already `apktool_patch('patches-sdk')`'d at `extract-files.py:142` (existing `patches-sdk/0001-fixes.patch`) — **no extract-files.py change**. One rewrite covers both qcom + non-qcom branches (both probe L19 first). |
+| **Source (ii)** | **AUTHOR-NEW** (a one-string smali rewrite). Dodge proof-of-form = **NO** (no dodge face-beauty-preview crash). |
+| **Status (iii)** | **READY — ROOT PINNED.** On-device v2.1 VERIFIED (frida + 6+ tombstones): the BUILD succeeds (`ParamAdjustFactory::adjustParameters` out populated) but the consumer gets all-zero; guarded lib `17efbc5b` byte-identical + present at `/system_ext/lib64`; probed `/product/lib64/…ProductJni.so` ABSENT. No open RE question. |
+| **Interlock (v)** | None load-bearing (the lib loads by bare name → no sepolicy/namespace dependency; independent of R1–R7). |
+| **Verify** | After build: `grep …ProductJni.so /proc/$(pidof com.oplus.camera)/maps` present; `FBinit success`/`wait for init finish` in logcat (strings exist only in the Product lib); front-cam + face-retouch + face → no crash; frida `adjustParam` → `FaceBeautyParams allZero=false`. |
+
+---
+
+## 10 — v2.2 device-tree fixes (pano blobs + text-mode sepolicy) — **READY**
+
+LOS device/vendor-tree edits (not R-items): a missing-blob re-add + sepolicy `allow` rules, both with on-device-verified roots this session.
+
+### 10a — Pano: add `libjni_burstpmk.so` + `libarcsoft_panorama_burstcapture.so` — **READY (adopt-from-dump, wideselfie form)**
+- **Contract:** PANO FATAL-crashes (`UnsatisfiedLinkError` at `com.arcsoft.camera.burstpmkv2.BurstPMKEngine.<clinit>`) — the 2 native libs are absent (the Java class already ships).
+- **(i)** `vendor/oplus/camera`: `proprietary-files.txt` (+2 `my_product/lib64/{libjni_burstpmk,libarcsoft_panorama_burstcapture}.so:system_ext/lib64/…`), `camera-vendor.mk` PRODUCT_PACKAGES (+2), `camera/Android.bp` (+2 `cc_prebuilt_library_shared`, `system_ext_specific`). Model = the in-tree **wideselfie** pair; source blobs = `dump300_full/my_product/lib64/`.
+- **(ii)** ADOPT-from-dump (wideselfie-identical form). **(iii)** READY. **Verify:** MORE→PANO enters w/o `UnsatisfiedLinkError`; pano capture completes.
+
+### 10b — Text-mode sepolicy: 4 `allow` rules — **READY (author-new from OOS policy)**
+- **Contract:** TEXT/OCR triggers 4 avc denials (permissive-only today; would block under enforcing). OOS (enforcing) grants all 4.
+- **(i)** `vendor/oplus/camera/sepolicy/vendor/opluscamera_app.te` (+`vendor_camera_data_file:dir/file`, +`vendor_qdsp_device:chr_file {ioctl read open}`), `sepolicy/private/opluscamera_app.te` (`binder_call(opluscamera_app, system_suspend)`), NEW `sepolicy/vendor/cameraserver.te` (`allow cameraserver opluscamera_app:process setsched;`), and `device/qcom/sepolicy_vndr/sm8750/generic/vendor/common/domain.te` (carve `-opluscamera_app` into the `vendor_qdsp_device:chr_file ~{ioctl read}` neverallow — the ONE non-`vendor/oplus/camera` edit).
+- **(ii)** AUTHOR-NEW (mirrors OOS plat_pub_versioned / system_ext policy). **(iii)** READY. **Verify:** `setenforce 1` + drive TEXT → zero `avc denied` for the 4 contexts.
+
+---
+
 ## Work-order summary (BUILD-ORDER load-bearing-first)
 
 | # | Req | LOS edit form | Source | Status | Interlock | Gate |
@@ -203,11 +232,16 @@ the reduction is a *downstream verification* that a family's guard became dead c
 | 7 | **R6** | adopt session-typing + sepolicy namespace; then retire Family-III | **ADOPT** | **DARK** | I7 | deferred until publish confirmed |
 | — | native/0001 | adopt BINDER_VM_SIZE 1→4MB (`libs/binder/ProcessState.cpp`) | **ADOPT** (file-identical) | **READY** | — | low-risk; verify it built into `libbinder` |
 | — | base/0001 | already applied+effective (`nativeGetOplusHardwareBuffer`) | — | **DONE** | — | #7 REFUTED (X3); close benign |
+| 8 | **R8** | smali probe-rewrite (`patches-sdk`: `/product`→`/system_ext`) | author-new | **READY** | — | **v2.2**; #9 face-beauty (independent of R1–R7) |
+| — | pano | +2 blobs (proprietary-files + camera-vendor.mk + Android.bp, wideselfie form) | ADOPT-from-dump | **READY** | — | **v2.2**; fixes pano `UnsatisfiedLinkError` |
+| — | text-sepolicy | 4 `allow` rules (`vendor/oplus/camera/sepolicy` ×3 + sm8750 `domain.te` neverallow carve-out) | author-new (from OOS policy) | **READY** | — | **v2.2**; TEXT/OCR under enforcing |
+| — | R4 (fold-in) | bake `frameworks/av ff7a3713a` Depth-2 hooks (already cam-final tip) into bacon — no more overlay | adopt (already wired) | **READY** | I1 | **v2.2**; completes Depth-2 lifecycle (does NOT gate 8K) |
 
 **Keep / no-action:** X1 (do-not-author the SHDR knob), X4 (do-not-author the public.libraries entry; re-home #5 at D1), Family-I (keep minimal), the non-P010 sepolicy/public.libraries enablers (keep the 12-lib patch + Treble-clean `.te`).
 
 ## What this plan stages now vs blueprints
 - **STAGED (ready to land):** **R2** (av/0001 + the `d654641` reversal recipe — see `R2-apply-manifest.md`) and **native/0001** (file-identical adopt). **R7** is READY-to-author (no RE block) but not staged as a patch (it's a new Java class to write into `oplus-camera-stubs`, not a portable .patch).
+- **v2.2 cycle — STAGED & READY (all on-device-verified roots, §9/§10 above):** **R8** (smali probe-rewrite in `patches-sdk/`), **pano** (+2 blobs, wideselfie form), **text-sepolicy** (4 `allow` rules incl. the sm8750 neverallow carve-out), and **R4 fold-in** (`frameworks/av ff7a3713a` baked by bacon, no more `libcameraservice.so` overlay). These land on the cam-final forks → build `lineage-23.2-v2.2-infiniti.zip`.
 - **BLUEPRINTED (RE-BLOCKED / deferred):** **R1** (locate the `gCallbackRequestAction` bridge JNI lib + LOS A/B), **R4** (author the 6 Depth-2 hook bodies, gated behind R2), **R3** (the libgui `setEdrViewTransform` curve ABI wire values + SF read mapping), **R5** (config-deferred: the in-scene session-typing arm + `rc=−2` A/B), **R6** (DARK: confirm the TurboHDR publish app-side).
 
 ## Cross-links
