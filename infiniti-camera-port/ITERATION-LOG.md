@@ -103,6 +103,9 @@ Server has no GitHub push creds, so commits were relayed (format-patch → `git 
 
 | date | module | source (branch+SHA / diff ref) | device target | restart action | test result | disposition |
 |------|--------|--------------------------------|---------------|----------------|-------------|-------------|
+| 2026-06-17 | A1 — Osense ABI stubs (oplus-fwk) | `android_hardware_oplus` `lineage-23.2-cam-final` `d49a9e8`; compiled `m oplus-fwk` on build server; pushed `system/framework/oplus-fwk.jar` + `arm64/boot-oplus-fwk.{art,oat,vdex}` + `boot-oplus-fwk.vdex` via `adb remount`; server synced via `/srv/android/bin/repo sync hardware/oplus device/oneplus/infiniti` | `/system/framework/oplus-fwk.jar` + arm64 boot artifacts | `adb reboot` (framework jar requires full reboot) | `NoSuchMethodError` for Osense eliminated (zero hits in logcat/dropbox); `getBlastSurfaceControl` returns valid `SurfaceControl` object on 2nd+ call (frida inline: `Surface(name=a836abd SurfaceView[...Camera]#438)/@0x55d6c28`) — was `null` every call on v1.4 baseline; ArcSoft TurboHDR tombstone unrelated (present pre-Osense fix, fired during edr-hdr shutter path, not the preview EDR gate) | PROMOTED→`d49a9e8` (android_hardware_oplus lineage-23.2-cam-final) |
+| 2026-06-17 | A2 — BasicTone Cb/Cr blob patch (`libBasicTonePhoto.so`) | `android_device_oneplus_infiniti` `lineage-23.2-cam-final` `7675520`; Python regex patch at offset `0x298f2` swapping `vec4(dstYuv.r, dstYuv.b, dstYuv.g, 1.0)` → `vec4(dstYuv.r, dstYuv.g, dstYuv.b, 1.0)` (1 site, length-preserved 538400 B); pushed via `adb remount` to `/odm/lib64/libBasicTonePhoto.so` (md5 `1302c4ae3cd7ab9d483e67dfc7f1a188` verified on device post-reboot) | `/odm/lib64/libBasicTonePhoto.so` | `adb shell killall cameraserver` | 6 JPEGs saved to `/sdcard/DCIM/Camera/` (IMG20260616224629..225659) during p010-basictone capture; no `BasicTone_OGL::saveOutImg` tombstone in tombstone_47–49; tombstone_49 = `ncsUnreleased 16` camera provider SIGABRT predates capture (15:22 vs 22:46 first capture) — A4 issue, unrelated; p010-basictone condition 2/2 runs shutter fired; blob persisted across reboot via OverlayFS | PROMOTED→`7675520` (android_device_oneplus_infiniti lineage-23.2-cam-final; blob_fixup in extract-files.py) |
+| 2026-06-17 | A1-escalation — EDR surgical fix: suppress `getBlastSurfaceControl` (oplus-fwk) | `android_hardware_oplus` `lineage-23.2-cam-final` `3d10b16`; `getBlastSurfaceControl` returns `null` unconditionally — forces camera app into SDR preview path; LOS SF lacks OEM EDR read-side (`OplusRequestedLayerState::setEdrMetadata` + `GameEdr::setEDRStatus`), so non-null SC triggered HDR path that SF cannot tone-map → overexposure; compiled `m oplus-fwk` on build server (build in progress) | `/system/framework/oplus-fwk.jar` + arm64 boot artifacts | `adb reboot` | OPEN (under test) |
 | 2026-06-16 | v1.4 launch/capture smoke | flashed `v1.4-cam300-20260616` (`a8373e0` hardware/oplus, `dd3ca87` vendor/oplus/camera); runtime overlay used `cust_build` `oplus-fwk.jar`/boot artifacts to restore typed `ViewRootManager.setBlurParams(OplusBlurParam)`; source patch added in `android_hardware_oplus` | device runtime; `/odm/etc/camera` bind log overlay, `persist.vendor.camera.oplus.enableLogging=true`, APS private logs, AOSP `log.tag.*`, Frida CamX `g_logInfo` + CHI retaa #1/#2 + OEM OLog globals | camera launched, intro dismissed, shutter tapped, `/sdcard/DCIM/Camera/IMG20260616125653.jpg` saved; full log has 8.9M CamX lines and 178k Chi lines; app-side OCS logger attach resolves 5/5 gates but crashes `CameraUnitCallb`, so leave it off during functional capture | PROMOTED→`29858cca`+`d49a9e8` (typed blur params + Osense ABI stubs, android_hardware_oplus lineage-23.2-cam-final) + REVERTED (log/debug overlays: `/odm/etc/camera` bind log, `enableLogging=true`, `log.tag.*`, Frida probes — diagnostic-only, tools/observability/-managed, no production source) |
 
 > disposition ∈ {PROMOTED→`<commit>` , REVERTED , OPEN(under test)}. No row may stay OPEN across a full build.
@@ -169,3 +172,56 @@ Deferred to Build 2 (not "easy"/dodge-correlated): EDR libgui/SF ABI (R3, the ov
 - Incremental rule: touch ONLY changed files; never `git checkout --force`/`lfs pull`/re-extract before an incremental (mtime-bombs the graph → full rebuild).
 
 **Flash:** still HELD. v1.3 supersedes v1.2 as the flash target (fully-consistent 300). Post-flash smoke (Lane-1): camera launch+open+preview+capture+zoom; gyro/EIS+AON; audio; DV recording instantiates c2.qti.dv.encoder; modem XTS; EDR over-exposure still = R3/Build 2.
+
+---
+
+## Build v2.0 (2026-06-23) — P010 root fix + libapsfixup DROPPED — STAGED (working tree; NOT yet built)
+
+**Thesis:** the P010 photo-save crash is a from-source FRAMEWORK divergence, now pinned + binary-verified.
+`libAlgoProcess` (byte-identical OOS↔LOS) locks the `P010_VENUS (0x7FA30C0A)` fusion-OUTPUT buffer via the
+framework `AHardwareBuffer_lockPlanes`, gated by `AHardwareBuffer_formatIsYuv`. **OOS** libnativewindow
+recognizes `0x7FA30C0A` and fills 3 planes; **stock LOS** doesn't → chroma unset → SIGSEGV. One framework
+case = OOS parity + born-correct descriptor ⇒ libapsfixup is dead code, so we DROP it (an obvious crash
+beats a shim-masked one for stack-format verification). See
+`docs/re-notes/formatisyuv-p010-framework-root-RE.md` + `.omo/evidence/v20-camera-build/`.
+
+**v2.0 transforms (source edits — PROMOTE to cam-final after v2.0 validates):**
+
+| # | transform | repo / path | class | reconciliation |
+|---|-----------|-------------|-------|----------------|
+| **P1** | **THE root fix.** `AHardwareBuffer_formatIsYuv` += `case 0x7FA30C0A` (P010_VENUS). Binary-verified OOS-exact: OOS `lockPlanes` recognizes ONLY this qcom format (not the giulia 12-format superset); luma pixelStride stays 1 (== OOS `b.hi` branch), so the single `formatIsYuv` case is byte-faithful. | `android_frameworks_native/libs/nativewindow/AHardwareBuffer.cpp:763` | **source edit** | PROMOTE "nativewindow: recognize P010_VENUS in formatIsYuv (OOS parity, P010 root fix)" |
+| **P2** | `NUM_BUFFER_SLOTS 64→96` (Oplus cam requests >64 → black viewfinder). giulia-parity (`realahnet 1f4f5574`); NOT OOS-binary-verified; pure capacity headroom. | `android_frameworks_native/libs/ui/include/ui/BufferQueueDefs.h:28` | **source edit** | PROMOTE; low risk |
+| **R1** | **libapsfixup DROPPED.** Removed: `.add_needed('libapsfixup.so')` on libAlgoProcess (infiniti `extract-files.py:71-74`, the load-bearing DT_NEEDED — reverses #4/#14); shim module `apsfixup/{Android.bp,apsfixup.cpp}`; common public-lib injector (`sm8850-common extract-files.py:169-171`); `public.libraries.txt:21`; sepolicy `file_contexts` label. **No `PRODUCT_PACKAGES` ref existed** (module was pulled only via the now-removed `.add_needed`), so no dangling module. namespace_import #15 (`device/oneplus/infiniti`) left in place — dead but harmless. **Frida format-trace probes preserved** at `apsfixup/docs/frida/` for the testbench (planelayout/bufferfill/chroma/outstruct/force_align). | infiniti + sm8850-common device repos | **source edit** | both `extract-files.py` re-`py_compile` OK; no build-input `apsfixup` ref remains (grep clean). **Precondition: P1 must hold on-device or the crash returns (intended signal).** |
+| **R2** | **SDR-preview workaround ADDED (over-exposure fix) — was MISSING from cam-final.** Port of dirty-work `af344d3` (prop-only; supersedes the `c45f452` smali form). `opluscamera.mk`: add `persist.camera.override_enable=true`, set `persist.camera.override_preview_hdr_support` `1→false`. Root: the `.201` app renders preview on a BT2020_HLG surface (5.0 headroom); LOS sRGB panel has no HLG→SDR tonemap → ~5× over-exposed. Forcing the capability off keeps preview sRGB (numHdrLayers→0). The prior `dd3ca87` "sync OOS HDR props" introduced `=1` with NO `override_enable` → **inert** (the override prop is ABSENT from OOS's static config — verified in `dump300_full`; OOS leaves it default since it has the HDR display path). The HDR *feature* props (`dolby_vision*`/`hdr_vision_app`/`localhdr_version`/`edrlistener`/`uhdr.support`) ARE in the OOS baseline → kept. EDR read-side stays **simple stubs** (`OplusEdrUtils` no-ops) — NO SF/libgui EDR port. The `CameraManager$a` compat-shim half of `af344d3` is NOT in cam-final and is NOT ported here (flagged for a separate decision). | `vendor_oplus_camera/opluscamera.mk` | **source edit** | PROMOTE; intentional OOS deviation. `3d10b16` (`getBlastSurfaceControl→null`) was a different, abandoned device-only overlay — NOT used. |
+
+**KEEP (regression-watch, unchanged this round):** BasicTone Cb/Cr blob patch (`7675520`) — cosmetic R/B
+swap, NOT the crash fix; re-verify color once descriptor is born-correct, never credit for stability.
+SAT-fusion identity gate (`dc44f0462`) — keep; re-verify it doesn't alter the OUTPUT format selection now
+that P1 lands. Substrate (page-size 4096, firmware-free recipe, graphics.common→V7, V5→V7 on libAlgoProcess)
+— keep, unrelated.
+
+**Reconciliation sequence (AOSP/LOS conventional — NOT patchelf):** (1) committed P1/P2/R1/R2 on cam-final
+and **pushed** the 6 source commits to `1vivy`; (2) **`repo sync`** the 6 affected projects in the build tree;
+(3) **re-ran the device `extract-files.py`** vs `dump300_full` (regenerates `vendor/oneplus/infiniti/Android.bp`
++ blobs together — dropping libapsfixup from both); (4) restored re-extract collateral (radio/* fw pointers,
+libBasicTonePhoto, DV-codec XML) to keep it focused; (5) committed + **pushed the proprietary/blob sync commit**
+`proprietary_vendor_oneplus_infiniti@565d450`; (6) `m nothing` → `mka bacon`.
+**LESSON (now in `/srv/android/AGENT.md`):** a first attempt patchelf'd only the blob → Soong failed
+`"libAlgoProcess" depends on undefined module "libapsfixup"` because extract-utils GENERATES `Android.bp` from
+the blob DT_NEEDED. Never hand-edit an extracted blob to change a DT_NEEDED — re-run the full extract + push the
+proprietary sync commit.
+
+**BUILD: SUCCESS** (2026-06-24 00:34) — `build_rc=0`, 48:43, ccache **99.63%** (content-check survived the
+re-extract mtime churn), no OOM. Artifact `lineage-23.2-20260623-UNOFFICIAL-infiniti.zip` preserved →
+`/srv/android/artifacts/lineage-23.2-v2.0-infiniti.zip` (sha256 `56c48f5a…`).
+
+**Post-build VERIFY (all observed in-image):** shipped `odm/lib64/libAlgoProcess.so` has **no** `NEEDED
+libapsfixup`; **`odm.img` and all 13 `installed-files` manifests carry 0 `libapsfixup`** (the `obj/`+`symbols/`
+copies are stale Jun-16/v1.4 orphans, never packed); **P1** `0x7FA30C0A` recognized in shipped
+`system/lib64/libnativewindow.so` (`movk w8,#32675`); **R2** `override_enable=true` + `override_preview_hdr_support
+=false` in `product/etc/build.prop`; firmware-free OTA (only OS partitions — matches v1.4, confirmed by payload).
+
+**Flash:** HELD — flashable on hand. The remaining honest test is on-device: P010/Pro capture with the
+`apsfixup/docs/frida` format-trace probes — P1 holds ⇒ JPEGs save, descriptor non-null, **zero**
+`saveOutImg`/ArcSoft/BasicTone tombstones; P1 incomplete ⇒ obvious crash at the exact stage (no shim to mask it).
+v2.0 supersedes v1.4 as the flash target.

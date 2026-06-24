@@ -1,0 +1,189 @@
+
+/srv/android/dumps/extracted/dump300_full/system/lib64/libnativewindow.so:	file format elf64-littleaarch64
+
+
+Disassembly of section .text:
+
+0000000000008810 <AHardwareBuffer_lockPlanes>:
+    8810: 3f 23 03 d5  	hint	#25
+    8814: ff 03 03 d1  	sub	sp, sp, #192
+    8818: fd 7b 08 a9  	stp	x29, x30, [sp, #128]
+    881c: f7 4b 00 f9  	str	x23, [sp, #144]
+    8820: f6 57 0a a9  	stp	x22, x21, [sp, #160]
+    8824: f4 4f 0b a9  	stp	x20, x19, [sp, #176]
+    8828: fd 03 02 91  	add	x29, sp, #128
+    882c: 55 d0 3b d5  	mrs	x21, TPIDR_EL0
+    8830: e8 03 00 aa  	mov	x8, x0
+    8834: a0 02 80 12  	mov	w0, #-22
+    8838: a9 16 40 f9  	ldr	x9, [x21, #40]
+    883c: a9 83 1f f8  	stur	x9, [x29, #-8]
+    8840: a8 0e 00 b4  	cbz	x8, 0x8a14 <AHardwareBuffer_lockPlanes+0x204>
+    8844: f3 03 04 aa  	mov	x19, x4
+    8848: 64 0e 00 b4  	cbz	x4, 0x8a14 <AHardwareBuffer_lockPlanes+0x204>
+    884c: 29 00 04 d1  	sub	x9, x1, #256
+    8850: 3f 01 04 b1  	cmn	x9, #256
+    8854: 28 01 00 54  	b.hi	0x8878 <AHardwareBuffer_lockPlanes+0x68>
+    8858: c1 ff ff f0  	adrp	x1, 0x3000 <AHardwareBuffer_lockPlanes+0x34>
+    885c: 21 e4 05 91  	add	x1, x1, #377
+    8860: c2 ff ff f0  	adrp	x2, 0x3000 <AHardwareBuffer_lockPlanes+0x3c>
+    8864: 42 a0 0d 91  	add	x2, x2, #872
+    8868: c0 00 80 52  	mov	w0, #6
+    886c: 5d 08 00 94  	bl	0xa9e0 <__android_log_print@plt>
+    8870: a0 02 80 12  	mov	w0, #-22
+    8874: 68 00 00 14  	b	0x8a14 <AHardwareBuffer_lockPlanes+0x204>
+    8878: e0 03 08 aa  	mov	x0, x8
+    887c: f7 03 01 aa  	mov	x23, x1
+    8880: f4 03 02 2a  	mov	w20, w2
+    8884: f6 03 03 aa  	mov	x22, x3
+    8888: da 08 00 94  	bl	0xabf0 <_ZN7android13GraphicBuffer19fromAHardwareBufferEP15AHardwareBuffer@plt>
+    888c: 76 00 00 b4  	cbz	x22, 0x8898 <AHardwareBuffer_lockPlanes+0x88>
+    8890: c0 02 c0 3d  	ldr	q0, [x22]
+    8894: 06 00 00 14  	b	0x88ac <AHardwareBuffer_lockPlanes+0x9c>
+    8898: 01 64 04 2f  	mvni	v1.2s, #128, lsl #24
+    889c: 02 24 40 fd  	ldr	d2, [x0, #72]
+    88a0: 00 e4 00 6f  	movi	v0.2d, #0000000000000000
+    88a4: 41 6c a1 2e  	umin	v1.2s, v2.2s, v1.2s
+    88a8: 20 04 18 6e  	mov	v0.d[1], v1.d[0]
+    88ac: 01 e4 00 6f  	movi	v1.2d, #0000000000000000
+    88b0: 16 54 40 b9  	ldr	w22, [x0, #84]
+    88b4: 08 0b 87 52  	mov	w8, #14424
+    88b8: 08 04 a4 72  	movk	w8, #8224, lsl #16
+    88bc: e4 03 13 aa  	mov	x4, x19
+    88c0: e1 03 17 aa  	mov	x1, x23
+    88c4: df 02 08 6b  	cmp	w22, w8
+    88c8: e0 07 80 3d  	str	q0, [sp, #16]
+    88cc: 81 8c 80 3c  	str	q1, [x4, #8]!
+    88d0: 81 84 00 ad  	stp	q1, q1, [x4, #16]
+    88d4: 81 0c 80 3d  	str	q1, [x4, #48]
+    88d8: 6c 01 00 54  	b.gt	0x8904 <AHardwareBuffer_lockPlanes+0xf4>
+    88dc: df f2 00 71  	cmp	w22, #60
+    88e0: a8 06 00 54  	b.hi	0x89b4 <AHardwareBuffer_lockPlanes+0x1a4>
+    88e4: 28 00 80 52  	mov	w8, #1
+    88e8: 69 02 a0 d2  	mov	x9, #1245184
+    88ec: 08 21 d6 9a  	lsl	x8, x8, x22
+    88f0: 09 01 c0 f2  	movk	x9, #8, lsl #32
+    88f4: 09 08 e2 f2  	movk	x9, #4160, lsl #48
+    88f8: 1f 01 09 ea  	tst	x8, x9
+    88fc: a1 02 00 54  	b.ne	0x8950 <AHardwareBuffer_lockPlanes+0x140>
+    8900: 2d 00 00 14  	b	0x89b4 <AHardwareBuffer_lockPlanes+0x1a4>
+    8904: 08 cb 8a 52  	mov	w8, #22104
+    8908: 28 46 a6 72  	movk	w8, #12849, lsl #16
+    890c: df 02 08 6b  	cmp	w22, w8
+    8910: 0c 01 00 54  	b.gt	0x8930 <AHardwareBuffer_lockPlanes+0x120>
+    8914: 28 0b 87 52  	mov	w8, #14425
+    8918: 08 04 a4 72  	movk	w8, #8224, lsl #16
+    891c: df 02 08 6b  	cmp	w22, w8
+    8920: 80 01 00 54  	b.eq	0x8950 <AHardwareBuffer_lockPlanes+0x140>
+    8924: 28 2b 86 52  	mov	w8, #12633
+    8928: c8 06 a4 72  	movk	w8, #8246, lsl #16
+    892c: 07 00 00 14  	b	0x8948 <AHardwareBuffer_lockPlanes+0x138>
+    8930: 48 81 81 52  	mov	w8, #3082
+    8934: 68 f4 af 72  	movk	w8, #32675, lsl #16
+    8938: df 02 08 6b  	cmp	w22, w8
+    893c: a0 00 00 54  	b.eq	0x8950 <AHardwareBuffer_lockPlanes+0x140>
+    8940: 28 cb 8a 52  	mov	w8, #22105
+    8944: 28 46 a6 72  	movk	w8, #12849, lsl #16
+    8948: df 02 08 6b  	cmp	w22, w8
+    894c: 41 03 00 54  	b.ne	0x89b4 <AHardwareBuffer_lockPlanes+0x1a4>
+    8950: 00 e4 00 6f  	movi	v0.2d, #0000000000000000
+    8954: e2 43 00 91  	add	x2, sp, #16
+    8958: e3 83 00 91  	add	x3, sp, #32
+    895c: e4 03 14 2a  	mov	w4, w20
+    8960: e0 83 01 ad  	stp	q0, q0, [sp, #48]
+    8964: e0 83 02 ad  	stp	q0, q0, [sp, #80]
+    8968: e0 0b 80 3d  	str	q0, [sp, #32]
+    896c: 35 08 00 94  	bl	0xaa40 <_ZN7android13GraphicBuffer14lockAsyncYCbCrEjRKNS_4RectEP13android_ycbcri@plt>
+    8970: 60 00 00 34  	cbz	w0, 0x897c <AHardwareBuffer_lockPlanes+0x16c>
+    8974: 7f 02 00 b9  	str	wzr, [x19]
+    8978: 27 00 00 14  	b	0x8a14 <AHardwareBuffer_lockPlanes+0x204>
+    897c: e9 13 40 f9  	ldr	x9, [sp, #32]
+    8980: 68 00 80 52  	mov	w8, #3
+    8984: df f2 00 71  	cmp	w22, #60
+    8988: 68 02 00 b9  	str	w8, [x19]
+    898c: 69 06 00 f9  	str	x9, [x19, #8]
+    8990: e8 02 00 54  	b.hi	0x89ec <AHardwareBuffer_lockPlanes+0x1dc>
+    8994: 28 00 80 52  	mov	w8, #1
+    8998: 09 02 a0 d2  	mov	x9, #1048576
+    899c: 08 21 d6 9a  	lsl	x8, x8, x22
+    89a0: 09 08 e2 f2  	movk	x9, #4160, lsl #48
+    89a4: 1f 01 09 ea  	tst	x8, x9
+    89a8: 20 02 00 54  	b.eq	0x89ec <AHardwareBuffer_lockPlanes+0x1dc>
+    89ac: 48 00 80 52  	mov	w8, #2
+    89b0: 10 00 00 14  	b	0x89f0 <AHardwareBuffer_lockPlanes+0x1e0>
+    89b4: e3 43 00 91  	add	x3, sp, #16
+    89b8: e6 83 00 91  	add	x6, sp, #32
+    89bc: e7 33 00 91  	add	x7, sp, #12
+    89c0: e2 03 01 aa  	mov	x2, x1
+    89c4: e5 03 14 2a  	mov	w5, w20
+    89c8: ff 23 00 b9  	str	wzr, [sp, #32]
+    89cc: ff 0f 00 b9  	str	wzr, [sp, #12]
+    89d0: 10 08 00 94  	bl	0xaa10 <_ZN7android13GraphicBuffer9lockAsyncEmmRKNS_4RectEPPviPiS6_@plt>
+    89d4: e9 23 40 b9  	ldr	w9, [sp, #32]
+    89d8: ea 0f 40 b9  	ldr	w10, [sp, #12]
+    89dc: 28 00 80 52  	mov	w8, #1
+    89e0: 68 02 00 b9  	str	w8, [x19]
+    89e4: 69 2a 02 29  	stp	w9, w10, [x19, #16]
+    89e8: 0b 00 00 14  	b	0x8a14 <AHardwareBuffer_lockPlanes+0x204>
+    89ec: 28 00 80 52  	mov	w8, #1
+    89f0: e9 2f 43 a9  	ldp	x9, x11, [sp, #48]
+    89f4: ea 17 40 f9  	ldr	x10, [sp, #40]
+    89f8: 6a 0e 00 f9  	str	x10, [x19, #24]
+    89fc: ea 43 40 b9  	ldr	w10, [sp, #64]
+    8a00: 68 2e 02 29  	stp	w8, w11, [x19, #16]
+    8a04: e8 4b 40 b9  	ldr	w8, [sp, #72]
+    8a08: 69 16 00 f9  	str	x9, [x19, #40]
+    8a0c: 68 2a 04 29  	stp	w8, w10, [x19, #32]
+    8a10: 68 2a 06 29  	stp	w8, w10, [x19, #48]
+    8a14: a8 16 40 f9  	ldr	x8, [x21, #40]
+    8a18: a9 83 5f f8  	ldur	x9, [x29, #-8]
+    8a1c: 1f 01 09 eb  	cmp	x8, x9
+    8a20: 01 01 00 54  	b.ne	0x8a40 <AHardwareBuffer_lockPlanes+0x230>
+    8a24: f4 4f 4b a9  	ldp	x20, x19, [sp, #176]
+    8a28: f7 4b 40 f9  	ldr	x23, [sp, #144]
+    8a2c: f6 57 4a a9  	ldp	x22, x21, [sp, #160]
+    8a30: fd 7b 48 a9  	ldp	x29, x30, [sp, #128]
+    8a34: ff 03 03 91  	add	sp, sp, #192
+    8a38: bf 23 03 d5  	hint	#29
+    8a3c: c0 03 5f d6  	ret
+    8a40: f0 08 00 94  	bl	0xae00 <__stack_chk_fail@plt>
+    8a44: 5f 24 03 d5  	hint	#34
+    8a48: 09 0b 87 52  	mov	w9, #14424
+    8a4c: e8 03 00 2a  	mov	w8, w0
+    8a50: 09 04 a4 72  	movk	w9, #8224, lsl #16
+    8a54: 1f 00 09 6b  	cmp	w0, w9
+    8a58: 20 00 80 52  	mov	w0, #1
+    8a5c: 8c 01 00 54  	b.gt	0x8a8c <AHardwareBuffer_lockPlanes+0x27c>
+    8a60: 1f f1 00 71  	cmp	w8, #60
+    8a64: e8 03 00 54  	b.hi	0x8ae0 <AHardwareBuffer_lockPlanes+0x2d0>
+    8a68: e8 03 08 2a  	mov	w8, w8
+    8a6c: 29 00 80 52  	mov	w9, #1
+    8a70: 28 21 c8 9a  	lsl	x8, x9, x8
+    8a74: 69 02 a0 d2  	mov	x9, #1245184
+    8a78: 09 01 c0 f2  	movk	x9, #8, lsl #32
+    8a7c: 09 08 e2 f2  	movk	x9, #4160, lsl #48
+    8a80: 1f 01 09 ea  	tst	x8, x9
+    8a84: e0 02 00 54  	b.eq	0x8ae0 <AHardwareBuffer_lockPlanes+0x2d0>
+    8a88: c0 03 5f d6  	ret
+    8a8c: 09 cb 8a 52  	mov	w9, #22104
+    8a90: 29 46 a6 72  	movk	w9, #12849, lsl #16
+    8a94: 1f 01 09 6b  	cmp	w8, w9
+    8a98: 4c 01 00 54  	b.gt	0x8ac0 <AHardwareBuffer_lockPlanes+0x2b0>
+    8a9c: 29 0b 87 52  	mov	w9, #14425
+    8aa0: 09 04 a4 72  	movk	w9, #8224, lsl #16
+    8aa4: 1f 01 09 6b  	cmp	w8, w9
+    8aa8: 00 ff ff 54  	b.eq	0x8a88 <AHardwareBuffer_lockPlanes+0x278>
+    8aac: 29 2b 86 52  	mov	w9, #12633
+    8ab0: c9 06 a4 72  	movk	w9, #8246, lsl #16
+    8ab4: 1f 01 09 6b  	cmp	w8, w9
+    8ab8: 80 fe ff 54  	b.eq	0x8a88 <AHardwareBuffer_lockPlanes+0x278>
+    8abc: 09 00 00 14  	b	0x8ae0 <AHardwareBuffer_lockPlanes+0x2d0>
+    8ac0: 29 cb 8a 52  	mov	w9, #22105
+    8ac4: 29 46 a6 72  	movk	w9, #12849, lsl #16
+    8ac8: 1f 01 09 6b  	cmp	w8, w9
+    8acc: e0 fd ff 54  	b.eq	0x8a88 <AHardwareBuffer_lockPlanes+0x278>
+    8ad0: 49 81 81 52  	mov	w9, #3082
+    8ad4: 69 f4 af 72  	movk	w9, #32675, lsl #16
+    8ad8: 1f 01 09 6b  	cmp	w8, w9
+    8adc: 60 fd ff 54  	b.eq	0x8a88 <AHardwareBuffer_lockPlanes+0x278>
+    8ae0: e0 03 1f 2a  	mov	w0, wzr
+    8ae4: c0 03 5f d6  	ret
