@@ -121,6 +121,27 @@ artifact. This node OWNS **R7** (motion-photo `CameraMetadataNativeWrapper` + fr
   still drops the tonemap. **VERDICT: PATCH the stub to return REAL; pair with F2. R3 stays SUPPORTED, conviction
   deferred to the EDR-invocation A/B (G6, eng build).**
 
+### R8 — face-beauty preview JNI load-path probe must hit where LOS ships the guarded lib  *(F1 OWNS)*
+
+- **(i) Mechanism.** `com.oplus.camera.facebeauty.OplusFaceBeautyPreview.<clinit>` (in `com.oplus.camera.unit.sdk.jar`)
+  existence-gates `/product/lib64/libApsFaceBeautyPreviewProductJni.so` then `loadLibrary("ApsFaceBeautyPreviewProductJni")`
+  (bare name → resolved by SONAME from `/system_ext`). LOS ships the guarded lib to `/system_ext/lib64` (the
+  `my_product→system_ext` remap), so the `/product/lib64` gate FAILS → unguarded in-APK `libApsFaceBeautyPreviewJni.so`
+  fallback (no `FBInitFlag` async-init guard) → apply (`Slender2D_process`) before init → all-zero `FaceBeautyParams`
+  → `lib2DSlender adjustParam+836` SIGSEGV (#9, symptom S9).
+- **(ii) Optimal LOS form.** **author-new smali probe-rewrite** — rewrite L19 `/product/lib64/…ProductJni.so` →
+  `/system_ext/lib64/libApsFaceBeautyPreviewProductJni.so` via a hunk under `vendor/oplus/camera/patches-sdk/` (the jar is
+  already `apktool_patch('patches-sdk')`'d at `extract-files.py:142`). One rewrite covers both qcom + non-qcom branches
+  (both probe L19 first). NOT a `lib2DSlender` null-guard (masks, not fixes); NOT a blob relocation (don't fight the
+  partition layout — the lib loads by bare name and already resolves from `/system_ext`).
+- **(iii) Proof-of-form.** **NO** dodge reference (dodge has no face-beauty-preview crash). RE-pinned on-device (LOS v2.1
+  frida + 6+ tombstones): the BUILD succeeds (`ParamAdjustFactory::adjustParameters` out populated) but the consumer gets
+  all-zero; variant BuildID `17efbc5b` (OOS /product, guarded) vs `f2454a34` (LOS in-APK, no guard); probed
+  `/product/lib64/…ProductJni.so` ABSENT on-device.
+- **(iv) LOS-confines.** Treble-clean (system_ext only; no `/product` write; **no sepolicy/namespace need** — bare-name
+  load already resolves). Re-buildable via the existing patches-sdk apktool flow. **VERDICT: rewrite the probe string;
+  ROOT PINNED, ready to stage.** Detail: `../re-notes/facebeauty-preview-algolibflag-RE.md` "## R8 UPWARD TRACE".
+
 ## Determinations baked in (authoritative — OOS baseline + RE)
 
 1. **KEEP the system_ext stub model.** Placement does NOT break resolution. E1 falsified the placement-break hypothesis;

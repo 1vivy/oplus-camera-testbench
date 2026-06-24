@@ -45,3 +45,4 @@ tools/persistence/oplus_cam_probes/injector.log
 
 # --- ignore some agentic stuff ---
 docs/instructions/
+.fablize/
