@@ -214,7 +214,7 @@ LOS device/vendor-tree edits (not R-items): a missing-blob re-add + sepolicy `al
 
 ### 10b — Text-mode sepolicy: 4 `allow` rules — **READY (author-new from OOS policy)**
 - **Contract:** TEXT/OCR triggers 4 avc denials (permissive-only today; would block under enforcing). OOS (enforcing) grants all 4.
-- **(i)** `vendor/oplus/camera/sepolicy/vendor/opluscamera_app.te` (+`vendor_camera_data_file:dir/file`, +`vendor_qdsp_device:chr_file {ioctl read open}`), `sepolicy/private/opluscamera_app.te` (`binder_call(opluscamera_app, system_suspend)`), NEW `sepolicy/vendor/cameraserver.te` (`allow cameraserver opluscamera_app:process setsched;`), and `device/qcom/sepolicy_vndr/sm8750/generic/vendor/common/domain.te` (carve `-opluscamera_app` into the `vendor_qdsp_device:chr_file ~{ioctl read}` neverallow — the ONE non-`vendor/oplus/camera` edit).
+- **(i)** `vendor/oplus/camera/sepolicy/vendor/opluscamera_app.te` (+`vendor_camera_data_file:dir/file`, +`vendor_qdsp_device:chr_file {ioctl read open}`), `sepolicy/private/opluscamera_app.te` (`binder_call(opluscamera_app, system_suspend)`), `sepolicy/private/cameraserver.te` (`allow cameraserver opluscamera_app:process setsched;` — plat-private; both cameraserver and opluscamera_app are coredomains, so the rule belongs in private/, not vendor/), and `device/qcom/sepolicy_vndr/sm8850/generic/vendor/common/domain.te` line 119 (carve `-opluscamera_app` into the `vendor_qdsp_device:chr_file ~{ioctl read}` neverallow — the ONE non-`vendor/oplus/camera` edit; board `canoe`=`UM_6_12_FAMILY`→`sm8850` per `SEPolicy.mk`, NOT sm8750).
 - **(ii)** AUTHOR-NEW (mirrors OOS plat_pub_versioned / system_ext policy). **(iii)** READY. **Verify:** `setenforce 1` + drive TEXT → zero `avc denied` for the 4 contexts.
 
 ---
@@ -234,14 +234,14 @@ LOS device/vendor-tree edits (not R-items): a missing-blob re-add + sepolicy `al
 | — | base/0001 | already applied+effective (`nativeGetOplusHardwareBuffer`) | — | **DONE** | — | #7 REFUTED (X3); close benign |
 | 8 | **R8** | smali probe-rewrite (`patches-sdk`: `/product`→`/system_ext`) | author-new | **READY** | — | **v2.2**; #9 face-beauty (independent of R1–R7) |
 | — | pano | +2 blobs (proprietary-files + camera-vendor.mk + Android.bp, wideselfie form) | ADOPT-from-dump | **READY** | — | **v2.2**; fixes pano `UnsatisfiedLinkError` |
-| — | text-sepolicy | 4 `allow` rules (`vendor/oplus/camera/sepolicy` ×3 + sm8750 `domain.te` neverallow carve-out) | author-new (from OOS policy) | **READY** | — | **v2.2**; TEXT/OCR under enforcing |
+| — | text-sepolicy | 4 `allow` rules (`vendor/oplus/camera/sepolicy` ×3 + sm8850 `domain.te` neverallow carve-out) | author-new (from OOS policy) | **READY** | — | **v2.2**; TEXT/OCR under enforcing |
 | — | R4 (fold-in) | bake `frameworks/av ff7a3713a` Depth-2 hooks (already cam-final tip) into bacon — no more overlay | adopt (already wired) | **READY** | I1 | **v2.2**; completes Depth-2 lifecycle (does NOT gate 8K) |
 
 **Keep / no-action:** X1 (do-not-author the SHDR knob), X4 (do-not-author the public.libraries entry; re-home #5 at D1), Family-I (keep minimal), the non-P010 sepolicy/public.libraries enablers (keep the 12-lib patch + Treble-clean `.te`).
 
 ## What this plan stages now vs blueprints
 - **STAGED (ready to land):** **R2** (av/0001 + the `d654641` reversal recipe — see `R2-apply-manifest.md`) and **native/0001** (file-identical adopt). **R7** is READY-to-author (no RE block) but not staged as a patch (it's a new Java class to write into `oplus-camera-stubs`, not a portable .patch).
-- **v2.2 cycle — STAGED & READY (all on-device-verified roots, §9/§10 above):** **R8** (smali probe-rewrite in `patches-sdk/`), **pano** (+2 blobs, wideselfie form), **text-sepolicy** (4 `allow` rules incl. the sm8750 neverallow carve-out), and **R4 fold-in** (`frameworks/av ff7a3713a` baked by bacon, no more `libcameraservice.so` overlay). These land on the cam-final forks → build `lineage-23.2-v2.2-infiniti.zip`.
+- **v2.2 cycle — STAGED & READY (all on-device-verified roots, §9/§10 above):** **R8** (smali probe-rewrite in `patches-sdk/`), **pano** (+2 blobs, wideselfie form), **text-sepolicy** (4 `allow` rules incl. the sm8850 neverallow carve-out), and **R4 fold-in** (`frameworks/av ff7a3713a` baked by bacon, no more `libcameraservice.so` overlay). These land on the cam-final forks → build `lineage-23.2-v2.2-infiniti.zip`.
 - **BLUEPRINTED (RE-BLOCKED / deferred):** **R1** (locate the `gCallbackRequestAction` bridge JNI lib + LOS A/B), **R4** (author the 6 Depth-2 hook bodies, gated behind R2), **R3** (the libgui `setEdrViewTransform` curve ABI wire values + SF read mapping), **R5** (config-deferred: the in-scene session-typing arm + `rc=−2` A/B), **R6** (DARK: confirm the TurboHDR publish app-side).
 
 ## Cross-links
