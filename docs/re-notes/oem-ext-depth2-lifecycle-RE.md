@@ -10,6 +10,13 @@ recovered the dispatch from the root function `Camera3Device::configureStreamsLo
 flow from the `getInstance` call sites across `libcameraservice`. **No donor** (op15ix/dodge wire zero
 Depth-2 sites) — R4 is author-new, and this RE is the guide.
 
+> **WIRED (frameworks_av `ff7a3713a`, on top of the v2.1 R2+C1 zip):** the two CONFIGURE hooks
+> (`getExtensionOperatingMode` + `beforeConfigureStreamsLocked`) are implemented per §"Ideal re-impl"
+> below, behind `CameraServiceExtFactory::isLoaded()` (the OOS-faithful ext-loaded gate, **no auth
+> 1:1**). Verified `mka libcameraservice` exit 0. `afterConfigureStreamsLocked` deferred (ambiguous
+> 2nd-`CameraMetadata` arg); trailing-`int` arg + exact OOS arg values are **flash-to-confirm** via the
+> r4 probe. Test via the overlay-bringup loop in `V2.1-FLASH-CAPTURE-PLAN.md`.
+
 ## Dispatch model (decoded — OOS `Camera3Device::configureStreamsLocked` @ 0x30348c)
 ```
 ldrb w8,[x19,#0x3b4]   ; ext-enabled flag on the Camera3Device object (x19)

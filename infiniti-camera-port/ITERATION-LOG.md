@@ -259,3 +259,11 @@ R4 is the next overlay-bringup workstream.
 **Flash + capture plan:** `docs/V2.1-FLASH-CAPTURE-PLAN.md` (carry v2.0 P010/SDR tests + new
 R2-ext-load / R4-Depth-2-gap / C1-oplu tests; new probes `r4-oem-transact/15_r2_extload_check.sh`,
 `c1-oplu-atom/check_oplu_atom.sh`). v2.1 supersedes v2.0 as the flash target.
+
+**R4 increment (configure hooks WIRED, `ff7a3713a`, on top of the v2.1 zip):** `getExtensionOperatingMode`
++ `beforeConfigureStreamsLocked` wired in `Camera3Device::configureStreamsLocked` behind
+`CameraServiceExtFactory::isLoaded()` — the OOS-faithful ext-loaded gate, **no auth 1:1** (OOS gates the
+configure hook on config-dirty + ext-loaded, NOT auth; the ext self-gates on the `com.oplus.packageName`
+stamp `dc44f0462` already writes into sessionParams + its onTransact auth state). Verified `mka
+libcameraservice` exit 0. `afterConfigureStreamsLocked` + exact hook args = flash-to-confirm (r4 probe).
+The v2.1 zip excludes R4 → overlay-bringup it (`oem-ext-depth2-lifecycle-RE.md` + `docs/V2.1-FLASH-CAPTURE-PLAN.md`).
