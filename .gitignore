@@ -42,3 +42,6 @@ tools/persistence/oplus_cam_probes/injector.log
 # --- stray capture artifacts anywhere ---
 *.strace
 *.log
+
+# --- ignore some agentic stuff ---
+docs/instructions/

@@ -112,6 +112,9 @@ goal is to *record how it is plumbed* — characterize it (observe), leave convi
 - `DODGE-VS-DIRTY.md` — the oracle divergence ledger (per facilitation artifact: ref path | our path | verdict).
 - `REFUTED-LOG.md` — dead ends keyed to node ids, so no node re-opens a refuted branch.
 - `DIRTY-NOTES-EXAM.md` — the dirty-corpus↔clean-tree consensus reconciliation (S1–S8 + cross).
+- `STATIC-SWEEP-2026-06-24.md` — OOS↔LOS-v2.0 **static** framework-binary discovery sweep
+  (`tools/observability/campaign/static_sweep.py`): the pinned port-candidate ledger (SS1–SS6) that
+  re-confirmed R2/R3 statically and surfaced a new UltraHDR-gainmap lead. Augments F2 / `OOS-OPEN-ITEMS-AND-DIFF-PLAN.md`.
 
 > **Facilitation naming (Phase-2 E→F migration, 2026-06-14):** the forward facilitation roots are now the
 > **F-plane nodes F1/F2/F3/F4** under `../facilitation/` (with `../facilitation/INDEX.md` as the

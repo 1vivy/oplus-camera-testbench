@@ -225,3 +225,37 @@ copies are stale Jun-16/v1.4 orphans, never packed); **P1** `0x7FA30C0A` recogni
 `apsfixup/docs/frida` format-trace probes — P1 holds ⇒ JPEGs save, descriptor non-null, **zero**
 `saveOutImg`/ArcSoft/BasicTone tombstones; P1 incomplete ⇒ obvious crash at the exact stage (no shim to mask it).
 v2.0 supersedes v1.4 as the flash target.
+
+---
+
+## Build v2.1 (2026-06-24) — R2 CameraServiceExt Depth-1 + C1 'oplu' atom — BUILT (flash target)
+
+**Thesis:** v2.1 = v2.0 + two `frameworks/av` source changes (no blob/extract churn). Branch
+`lineage-23.2-cam-final`, pushed to `1vivy/android_frameworks_av` tip **`478495db6`**.
+
+**Transforms:**
+| # | transform | commit | reconciliation |
+|---|-----------|--------|----------------|
+| **R2** | **CameraServiceExt Depth-1 (ext-only).** `CameraServiceExtFactory` dlopens `system_ext/lib64/libcsextimpl.so` (OEM-verified: it exports `getExtFactoryImpl`/`setCameraServiceInstance`/`onTransact`; OOS libcameraservice dlopens it with NO `DT_NEEDED` → design is OEM-faithful), routes binder 10001–10024, registers the CameraService instance. Donor: op15ix `b890522c0e` (factory only, same SoC). | `b2b176f07` | adopts op15ix over the prior dodge-based `a1cb339f5`. |
+| **R2-drop** | **op15ix `CameraMetadata` vendor-tag alias table DROPPED** (force-push). It was an unverified non-OOS guess: OOS `getTagFromName` is stock, OOS resolves `com.oplus.*` via its 1409-tag descriptor (dumpsys), the identity gate gates the *pathway* not tag *names* (`oem-client-identity-gate-RE` §B2/B4), and we have **zero** capture evidence of `NAME_NOT_FOUND` on our port. | (was in `ec55b7a96`, removed) | OOS-exact; see `STATIC-SWEEP-2026-06-24.md`. |
+| **C1** | **Oplus `oplu` MP4 atom (full chain).** `kKeyOplusUserData='opud'` + `StagefrightRecorder` producer (`setParameter("OplusUserData")`) + `MPEG4Writer` `udta`/`oplu` writer. OOS-aligned (OOS libstagefright carries the `OplusUserData` key). Inert unless the OEM app passes the param. Donor: dodge `45b355f4`. | `478495db6` | PROMOTE; low risk. |
+
+**KEY FINDING (R4, deferred — author-new, RE done):** cameraserver is **Depth-1-only**. The OEM ext's
+**Depth-2 lifecycle hooks are 0-wired** (before/afterConfigureStreamsLocked, getExtensionOperatingMode,
+onPrepareHalRequestsUpdateMetadata, beforeMetadataSendToApp, …) — neither dodge nor op15ix wire them. The
+back-channel exports ARE complete (ext's RTLD_NOW dlopen + callbacks resolve). Root-function RE of OOS
+`Camera3Device::configureStreamsLocked` recovered the dispatch (`getInstance`→table→`blr`, gated by an
+"ext-enabled" flag at `device+0x3b4`) + the full lifecycle flow → `docs/re-notes/oem-ext-depth2-lifecycle-RE.md`.
+R4 is the next overlay-bringup workstream.
+
+**MODULE BUILD: PASS** (`mka libcamera_client libcameraservice libstagefright libmediaplayerservice`, exit 0,
+3:24). **FULL BUILD: SUCCESS** (`mka bacon` exit 0, 12:29). Artifact `lineage-23.2-20260624-...zip` →
+`/srv/android/artifacts/lineage-23.2-v2.1-infiniti.zip` (sha256 `07e2de08…`). Firmware-free OTA.
+
+**In-image VERIFY (host):** `libcameraservice` exports `CameraServiceExtFactory::getInstance` (R2);
+`libstagefright` has the `"oplu"` box literal + `libmediaplayerservice` has the `"OplusUserData"` key (C1);
+`libcamera_client` has **0** alias-table strings (table removed). On-device = the capture plan below.
+
+**Flash + capture plan:** `docs/V2.1-FLASH-CAPTURE-PLAN.md` (carry v2.0 P010/SDR tests + new
+R2-ext-load / R4-Depth-2-gap / C1-oplu tests; new probes `r4-oem-transact/15_r2_extload_check.sh`,
+`c1-oplu-atom/check_oplu_atom.sh`). v2.1 supersedes v2.0 as the flash target.
