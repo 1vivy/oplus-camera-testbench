@@ -1,6 +1,7 @@
-<!-- STATUS: VERIFIED (static RE) — OOS dump300 libcameraservice disasm (llvm-objdump), 2026-06-24.
-     Maps the Depth-2 OEM-ext hook lifecycle + dispatch from the root function. On-device validation =
-     the r4-oem-transact probe on the v2.1 LOS flash (hooks armed-but-silent ⇒ R4 still unwired). -->
+<!-- STATUS: VERIFIED (static RE + on-device) — OOS dump300 libcameraservice disasm (llvm-objdump),
+     2026-06-24. Maps the Depth-2 OEM-ext hook lifecycle + dispatch from the root function. On-device
+     2026-06-25: R4 WIRED (v2.2) then FIXED (a536f0a481) — getExtensionOperatingMode op_mode clobber
+     root-caused + fixed in the cameraserver BINARY; 8K records 7680x4320. See the WIRED→FIXED block. -->
 # R4 — OEM CameraServiceExt Depth-2 hook lifecycle (root-function RE)
 
 ## TL;DR
@@ -10,12 +11,30 @@ recovered the dispatch from the root function `Camera3Device::configureStreamsLo
 flow from the `getInstance` call sites across `libcameraservice`. **No donor** (op15ix/dodge wire zero
 Depth-2 sites) — R4 is author-new, and this RE is the guide.
 
-> **WIRED (frameworks_av `ff7a3713a`, on top of the v2.1 R2+C1 zip):** the two CONFIGURE hooks
-> (`getExtensionOperatingMode` + `beforeConfigureStreamsLocked`) are implemented per §"Ideal re-impl"
-> below, behind `CameraServiceExtFactory::isLoaded()` (the OOS-faithful ext-loaded gate, **no auth
-> 1:1**). Verified `mka libcameraservice` exit 0. `afterConfigureStreamsLocked` deferred (ambiguous
-> 2nd-`CameraMetadata` arg); trailing-`int` arg + exact OOS arg values are **flash-to-confirm** via the
-> r4 probe. Test via the overlay-bringup loop in `V2.1-FLASH-CAPTURE-PLAN.md`.
+> **WIRED then FIXED (frameworks/av `ff7a3713a` → `a536f0a481`):** the two CONFIGURE hooks
+> (`getExtensionOperatingMode` + `beforeConfigureStreamsLocked`) are wired behind
+> `CameraServiceExtFactory::isLoaded()` (OOS-faithful ext-loaded gate, **no auth 1:1**).
+>
+> **REGRESSION (v2.2, on-device 2026-06-25):** once R4 actually shipped, `getExtensionOperatingMode`
+> **clobbered the op_mode**: it echoes its **trailing `int` arg as the fallback op_mode** (the OEM
+> override vendor-tag is absent on LOS — the alias table was dropped in R2), but the wiring passed
+> `atoi(mId)` (camId) there. So it returned the camera id → `mOperatingMode` clobbered (8K cam2→`0x2`,
+> selfie cam1→`0x1`; rear cam0 spared by the `extMode>0` guard) → configure `Unsupported set of
+> inputs/outputs` → 8K/selfie no-preview. **The trailing `int` is the fallback op_mode, NOT a camId**
+> (corrects the earlier "flash-to-confirm" guess).
+>
+> **FIX (`a536f0a481`):** pass `mOperatingMode` (not camId) as the trailing default so the echo is a
+> no-op, and only honor a real vendor-range override (`extMode >= 0x8000`). Verified on-device:
+> `getExtensionOperatingMode` receives `0x80a9`, no override; CamX runs `m_operationMode IS 0x80a9`;
+> **8K records a 7680×4320 `.mp4`** (selfie cam1 restored by the same change).
+>
+> **⚠️ The fix (and all of R4) lives in the `/system/bin/cameraserver` BINARY** — `libcameraservice` is
+> **statically linked** into it on this build, so `mka libcameraservice` + overlaying the `.so` is
+> **INERT** (the device runs the static copy in the binary). Build `mka cameraserver`, overlay
+> `/system/bin/cameraserver`. The old "overlay-bringup loop over the v2.1 zip" / "Verified mka
+> libcameraservice exit 0" path could never have confirmed R4. See
+> `cameraserver-static-link-build-traps.md`. `afterConfigureStreamsLocked` remains deferred (ambiguous
+> 2nd-`CameraMetadata` arg) — not needed for 8K.
 
 ## Dispatch model (decoded — OOS `Camera3Device::configureStreamsLocked` @ 0x30348c)
 ```

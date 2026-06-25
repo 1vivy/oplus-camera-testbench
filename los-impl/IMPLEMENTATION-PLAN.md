@@ -131,7 +131,15 @@ re-pin against a new OOS image per BUILD-ORDER §(c).
 
 ---
 
-## 5 — R4 · Depth-2 `beforeConfigureStreamsLocked` (8K StreamSet retype) — **RE-BLOCKED (gated behind R2)**
+## 5 — R4 · Depth-2 configure hooks — **FIXED (`a536f0a481`, on-device 2026-06-25)** (was RE-BLOCKED)
+
+> **RESOLVED:** the 2 CONFIGURE hooks (`getExtensionOperatingMode` + `beforeConfigureStreamsLocked`) are
+> wired (`ff7a3713a`) and the op_mode-clobber bug is fixed (`a536f0a481`). `getExtensionOperatingMode`'s
+> trailing `int` is the *fallback op_mode* (NOT camId); v2.2 passed camId → clobbered op_mode → broke
+> 8K/selfie. Fix: pass `mOperatingMode` + `>=0x8000` guard. **Lands in the `/system/bin/cameraserver`
+> BINARY** (libcameraservice is statically linked — `.so` overlay is INERT). **8K records 7680×4320
+> on-device.** The other 4 Depth-2 hook bodies (result/connect/disconnect/`afterConfigureStreamsLocked`)
+> remain unauthored but no observed symptom convicts them. See `re-notes/cameraserver-static-link-build-traps.md`.
 
 | Field | Value |
 |-------|-------|
@@ -235,13 +243,13 @@ LOS device/vendor-tree edits (not R-items): a missing-blob re-add + sepolicy `al
 | 8 | **R8** | smali probe-rewrite (`patches-sdk`: `/product`→`/system_ext`) | author-new | **READY** | — | **v2.2**; #9 face-beauty (independent of R1–R7) |
 | — | pano | +2 blobs (proprietary-files + camera-vendor.mk + Android.bp, wideselfie form) | ADOPT-from-dump | **READY** | — | **v2.2**; fixes pano `UnsatisfiedLinkError` |
 | — | text-sepolicy | 4 `allow` rules (`vendor/oplus/camera/sepolicy` ×3 + sm8850 `domain.te` neverallow carve-out) | author-new (from OOS policy) | **READY** | — | **v2.2**; TEXT/OCR under enforcing |
-| — | R4 (fold-in) | bake `frameworks/av ff7a3713a` Depth-2 hooks (already cam-final tip) into bacon — no more overlay | adopt (already wired) | **READY** | I1 | **v2.2**; completes Depth-2 lifecycle (does NOT gate 8K) |
+| — | R4 (fix) | `frameworks/av ff7a3713a`→**`a536f0a481`** (op_mode-clobber fix) baked into the **cameraserver BINARY** (`.so` overlay inert) | author-new + fix | **FIXED on-device 2026-06-25** | I1 | **v2.2 shipped → REGRESSED 8K/selfie (op_mode clobber) → FIXED `a536f0a481`; 8K records 7680×4320** |
 
 **Keep / no-action:** X1 (do-not-author the SHDR knob), X4 (do-not-author the public.libraries entry; re-home #5 at D1), Family-I (keep minimal), the non-P010 sepolicy/public.libraries enablers (keep the 12-lib patch + Treble-clean `.te`).
 
 ## What this plan stages now vs blueprints
 - **STAGED (ready to land):** **R2** (av/0001 + the `d654641` reversal recipe — see `R2-apply-manifest.md`) and **native/0001** (file-identical adopt). **R7** is READY-to-author (no RE block) but not staged as a patch (it's a new Java class to write into `oplus-camera-stubs`, not a portable .patch).
-- **v2.2 cycle — STAGED & READY (all on-device-verified roots, §9/§10 above):** **R8** (smali probe-rewrite in `patches-sdk/`), **pano** (+2 blobs, wideselfie form), **text-sepolicy** (4 `allow` rules incl. the sm8850 neverallow carve-out), and **R4 fold-in** (`frameworks/av ff7a3713a` baked by bacon, no more `libcameraservice.so` overlay). These land on the cam-final forks → build `lineage-23.2-v2.2-infiniti.zip`.
+- **v2.2 cycle — STAGED & READY (all on-device-verified roots, §9/§10 above):** **R8** (smali probe-rewrite in `patches-sdk/`), **pano** (+2 blobs, wideselfie form), **text-sepolicy** (4 `allow` rules incl. the sm8850 neverallow carve-out), and **R4** (`frameworks/av ff7a3713a`→**`a536f0a481`** op_mode-clobber fix, baked into the **cameraserver BINARY** — `libcameraservice` is statically linked, `.so` overlay is inert; 8K records 7680×4320 on-device). These land on the cam-final forks → build `lineage-23.2-v2.2-infiniti.zip`. **Build/deploy traps (read first): `re-notes/cameraserver-static-link-build-traps.md` — framework fixes go in the BINARY, ccache serves stale objects, verify at binary level.**
 - **BLUEPRINTED (RE-BLOCKED / deferred):** **R1** (locate the `gCallbackRequestAction` bridge JNI lib + LOS A/B), **R4** (author the 6 Depth-2 hook bodies, gated behind R2), **R3** (the libgui `setEdrViewTransform` curve ABI wire values + SF read mapping), **R5** (config-deferred: the in-scene session-typing arm + `rc=−2` A/B), **R6** (DARK: confirm the TurboHDR publish app-side).
 
 ## Cross-links

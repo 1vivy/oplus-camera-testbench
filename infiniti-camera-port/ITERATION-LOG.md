@@ -267,3 +267,25 @@ configure hook on config-dirty + ext-loaded, NOT auth; the ext self-gates on the
 stamp `dc44f0462` already writes into sessionParams + its onTransact auth state). Verified `mka
 libcameraservice` exit 0. `afterConfigureStreamsLocked` + exact hook args = flash-to-confirm (r4 probe).
 The v2.1 zip excludes R4 → overlay-bringup it (`oem-ext-depth2-lifecycle-RE.md` + `docs/V2.1-FLASH-CAPTURE-PLAN.md`).
+
+**R4 FIX increment (`a536f0a481`, on-device VERIFIED 2026-06-25) — v2.2 regression root-caused + fixed.**
+v2.2 shipped the wired R4 hooks (`ff7a3713a`) and they REGRESSED 8K + selfie into blurry/static/no-preview:
+`getExtensionOperatingMode` echoes its **trailing `int` as the fallback op_mode** (OEM override-tag absent on
+LOS — alias table dropped in R2), but the wiring passed `atoi(mId)` (camId), so it returned the camera id →
+`mOperatingMode` clobbered (8K cam2 `0x80a9`→`0x2`, selfie cam1→`0x1`; rear cam0 spared by the `>0` guard) →
+`endConfigure: Unsupported set of inputs/outputs` → no preview. **Fix:** pass `mOperatingMode` (not camId) +
+`extMode >= 0x8000` guard.
+
+THREE build/deploy traps discovered + documented (`re-notes/cameraserver-static-link-build-traps.md`):
+(1) **`libcameraservice` is statically linked into `/system/bin/cameraserver`** — R4 lives in the BINARY;
+`.so` overlay is INERT (why R4 was "compiles, flash-to-confirm" but never confirmed). Build `mka cameraserver`.
+(2) **ccache `file_stat_matches` serves STALE objects** — `mka exit 0` ≠ change shipped; build with a fresh
+`CCACHE_DIR` + verify at the binary level (LTO `.o` are bitcode — check the linked binary, not the `.o`).
+(3) **`adb remount` works on LOS** (broken only on OOS) — binaries exec from `/system` overlay (not `/data`,
+which AVC-denies `execute_no_trans` under enforcing).
+
+**On-device verify (committed clean binary `a4bfbdb3`, cameraserver pid live):** frida →
+`getExtensionOperatingMode` receives `0x80a9`, no override; CamX → `m_operationMode IS 0x80a9`; 0 configure
+failures; **8K records a 7680×4320 `.mp4` (647 MB)** (tkhd `7680x4320`). Selfie cam1 restored by the same fix.
+Committed on `lineage-23.2-cam-final`; `m nothing` + `mka cameraserver` clean; binary disasm carries the
+`cmp w0,#0x8000` guard.

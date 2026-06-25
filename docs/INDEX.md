@@ -81,6 +81,8 @@ of a specific binary, symbol, or ABI, linked from `los-impl/` blocked rows.
 | `gralloc-p010-chain-RE.md` | Gralloc P010 allocation chain RE (S5) |
 | `libapsfixup-interposition-RE.md` | libapsfixup interposition characterisation (retired path) |
 | `oem-binder-ontransact-RE.md` | OEM `onTransact` binder map (doc-48 Depth-1/Depth-2, R4) |
+| `oem-ext-depth2-lifecycle-RE.md` | R4 Depth-2 hook lifecycle/dispatch RE — WIRED→FIXED (op_mode clobber, `a536f0a481`) |
+| `cameraserver-static-link-build-traps.md` | cameraserver static-link + ccache stale-object + adb-remount traps (load-bearing for ALL frameworks/av work) |
 
 ---
 
