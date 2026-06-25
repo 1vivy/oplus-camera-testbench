@@ -2,6 +2,10 @@
 
 > Build-pinned tags: **OOS V16.1.0 / 16.0.8.300 / OP611FL1 / CPH2745**
 
+> **Start here → [`WORKFLOW.md`](WORKFLOW.md)** — the Mac↔builder↔device loop switchboard (bootstrap,
+> sync, build, overlay-test, retrieve, ledger). It routes to the runbooks in `docs/` (`SYNC`, `BUILD-HOST`,
+> `OVERLAY`, `LEDGER-SCHEMA`, `PATH-COUPLING`). Build-host ops truth: `oplus-logs build-doc`.
+
 ## Purpose
 
 `oplus-final` is the **clean reference + capture harness** for porting the Oplus/OnePlus camera stack

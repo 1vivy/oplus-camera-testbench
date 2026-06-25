@@ -319,3 +319,42 @@ On-device (CPH2747, app pid 18654, `debuggerd` + `logcat -b all`, permissive):
   sm8850 `domain.te` vndr fork → `cameraserver` R4-revert rebuild (verify 8K still records) → new-golden tracking →
   occe service (quality) → integration build + deferred flash gates. **The freeze is NOT fixed in v2.3** (gated on
   the new golden + a user-in-loop capture).
+
+---
+
+## DV-codec regression — extract-fixup-owned (2026-06-25) — FIX on cam-final; build pending
+
+**Symptom (regression):** DV HDR **video** mode broke again on v2.3. The loaded codec variant
+(`ro.media.xml_variant.codecs=_canoe_v2` → `/vendor/etc/media_codecs_canoe_v2.xml`) shipped **0 `c2.qti.dv`**.
+
+**Root cause (recurring trap #29, now closed):** the `device/oneplus/sm8850-common` extract pulls the stock
+dump `media_codecs_canoe_v2.xml` (which carries DV only via the `_vendor.xml` that is NOT in the load chain)
+and its blob_fixup only *stripped* google includes — it never re-injected DV. So every re-extract shipped 0
+DV. The inline previously survived **only** via a manual `git checkout` restore (the AGENT.md DV CAVEAT) —
+missed on the v2.3 integration build → committed proprietary `canoe_v2.xml` = 0 DV → image = 0 DV.
+
+**Fix (transform):**
+| # | transform | repo / path | class | reconciliation |
+|---|-----------|-------------|-------|----------------|
+| DV1 | extend the `media_codecs_canoe_{v2,sku3}.xml` blob_fixup to **re-inject** the 3 `c2.qti.dv` nodes (decoder, decoder.secure before `</Decoders>`; encoder before `</Encoders>`) after the google-strip, via chained `regex_replace`. Bodies byte-exact from `odm/etc/media_codecs_dolby_vision.xml`. | `device/oneplus/sm8850-common/extract-files.py` | source edit | PROMOTED to `cam-final` (`5cb5c6e`, pushed). Inline (not `<Include>`) mirrors `36efd78`. **Makes DV extract-fixup-owned → no manual restore, clobber-proof.** |
+
+**Evidence:**
+- **Fixup unit test** (re.sub == what extract runs): stock dump file (0 DV) → output = **3 `c2.qti.dv` nodes**
+  (2 in `<Decoders>`, 1 in `<Encoders>`), well-formed XML.
+- **On-device registration** (Tier-0 overlay; the user's sufficiency bar = present + registering): loaded
+  `canoe_v2.xml` `c2.qti.dv ×3` **∩** codec2 store `IComponentStore/default` registers `c2.qti.dv.{decoder,
+  decoder.secure,encoder}` as `video/dolby-vision` (backed by `libqcodec2_v4l2codec.so`) → MediaCodecList registers DV.
+
+**Tier flow:** `wip/dv-codec` (Tier 1) → on-device verify → `merge --ff-only` → `cam-final` `5cb5c6e` (Tier 2), pushed.
+
+**In-image verify (pending build):** after `repo sync device/oneplus/sm8850-common` + re-extract, expect
+`grep -c 'MediaCodec name="c2.qti.dv' vendor/oneplus/sm8850-common/proprietary/vendor/etc/media_codecs_canoe_v2.xml`
+== **3 with NO manual git-checkout restore** (the decisive proof the fixup fires). `mka bacon` HELD for explicit go.
+
+**TODO on build-verify:** retire the DV CAVEAT in `/srv/android/AGENT.md` ("restore canoe_v2.xml with git checkout")
+— obsolete once the fixup is confirmed firing in a real extract.
+
+**Workflow infra landed alongside (the coherence pass):** Mac edit-site bootstrap (`infiniti-camera-port/
+bootstrap-repos.sh`, 11 forks → `repos/`); `oplus-logs` extended to the build host (`build-log`/`artifact`/
+`build-doc`/`status`, `SROOT=/srv/android`); workflow doc set (`WORKFLOW.md` switchboard + `docs/{SYNC,BUILD-HOST,
+OVERLAY,LEDGER-SCHEMA,PATH-COUPLING}.md`, cross-linked from `AGENTS.md`/`README.md`/`docs/INDEX.md`).

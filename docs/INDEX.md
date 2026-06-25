@@ -10,6 +10,21 @@ This file is the navigational index for everything under `docs/`. Two subdirecto
 
 ---
 
+## Workflow runbooks (how to *operate* — start here)
+
+Single entry point: **[`../WORKFLOW.md`](../WORKFLOW.md)** (repo root) — the Mac↔builder↔device loop.
+Operational runbooks in `docs/`:
+
+| File | One-line purpose |
+|------|-----------------|
+| `SYNC.md` | Mac→builder sync + push tiers (overlay / wip / cam-final, no Gerrit) |
+| `BUILD-HOST.md` | Building on aosp-builder — index of `/srv/android/AGENT.md` (`oplus-logs build-doc`) |
+| `OVERLAY.md` | Reversible on-device tests (`adb remount` overlay) + revert guardrails |
+| `LEDGER-SCHEMA.md` | Which ledger when + the `oplus-logs` retrieval interface |
+| `PATH-COUPLING.md` | Paths hardcoded by scripts/workflows — do not rename |
+
+---
+
 ## Subdirectory trees
 
 ### `docs/rearch/`

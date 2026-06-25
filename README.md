@@ -1,5 +1,8 @@
 # oplus-final clean camera reference
 
+> **For agents: start with [`WORKFLOW.md`](WORKFLOW.md)** — the single switchboard for the
+> Mac (edit) ↔ aosp-builder (build) ↔ device loop. Then `AGENTS.md` for constraints, `docs/INDEX.md` for the taxonomy.
+
 Purpose: clean OP13s/dodge camera-port reference plus the OP15 OOS-baseline-v3 capture matrix/tooling needed to restart bringup work without importing OP15 working-tree variations or historical ambiguity.
 
 ## Contents
