@@ -289,3 +289,33 @@ which AVC-denies `execute_no_trans` under enforcing).
 failures; **8K records a 7680×4320 `.mp4` (647 MB)** (tkhd `7680x4320`). Selfie cam1 restored by the same fix.
 Committed on `lineage-23.2-cam-final`; `m nothing` + `mka cameraserver` clean; binary disasm carries the
 `cmp w0,#0x8000` guard.
+
+**v2.3 investigation session (2026-06-25) — portrait-selfie post-capture freeze CHARACTERIZED; side-issues + v2.3 ledger.**
+On-device (CPH2747, app pid 18654, `debuggerd` + `logcat -b all`, permissive):
+- **Freeze = app-side bokeh-render stall** (NOT a deadlock, NOT a HAL stall). `PreviewGLThread.onDrawFrame →
+  java.lang.Thread.sleep` retry ~13 s; `OplusBlurPreviewJNI` (OCCE single-portrait AISEG) goes silent ~13 s then
+  resumes; producers idle (`BlurPreviewHand`, QNN-HTP seg `libQnnHtp.so`, `previewManagerRoutine+1560` all
+  `cond_wait`); HAL healthy through the freeze (realtime 29 fps + `OplusOfflineReprocess0_OFE1` ~58/s;
+  `MotionDetection` ~30/s). **Root INFERRED = missing/late post-capture resume-bokeh trigger; not convicted, no fix
+  landed.** Full record: `docs/interop-tree/symptoms/S1-preview.md` UPDATE 2026-06-25b.
+- **Refuted with evidence (do not re-chase):** R4 op_mode clobber (front op_mode `0x8001` correct), face-beauty
+  (freezes with+without filter), APS `pfnAPSMemHW{Acquire,Release}` NULL (02:02:26 ≠ 02:03:09 freeze), NCS gyro
+  `hNCSDataHandle 0x0` (constant ~87/s, present on OOS golden too), bokeh `SDK_FAILURE`/`mInit` (session-start),
+  DSP/QNN hang (idle).
+- **Side issues documented + committed (`658a3a5`):** `re-notes/aps-metadata-buffer-init-RE.md`,
+  `interop-tree/facilitation/E5-ncs-sensor-bridge.md` (NCS = non-divergent feature facilitation, not the freeze).
+- **OOS golden diff (`oplus-logs`):** INCONCLUSIVE — golden lacks a front+portrait capture, masks app-side JNI
+  tags, self-terminates ~4 s post-shutter; op_mode `0x8001` + OFE `featuretype 48` match OOS↔LOS. Need a NEW
+  full-verbose front-portrait golden (~20 s post-capture window, no SENSOR/NCS mask).
+- **occe / 1b mechanism pinned:** `occe_create` precompiles OCCE shaders (via `libsaveshaderbin.so`) to
+  `/mnt/occe/shader/fb_binary`; LOS is missing `/odm/etc/init/occe_create.rc` + a sepolicy `occe_create` domain
+  (`u:r:occe_create:s0` / `occe_create_exec`) + the `/mnt/occe/*` post-fs-data dirs. OOS donor at
+  `dumps/extracted/dump300_full/odm/{bin/occe_create,etc/init/occe_create.rc}`. Addresses bokeh-init + selfie
+  retouch/blur **quality**, NOT the freeze. Source-ready, UNVALIDATED.
+- **OVERLAY/DRIVING BLOCKER:** synthetic input (`input tap` + `KEYCODE_CAMERA`) does NOT actuate capture on this
+  build (DCIM count unchanged); the freeze A/B needs the user's real touches + a live subject. occe overlay-test
+  deferred to a user-in-loop session.
+- **v2.3 commit-series ledger** (workflow, 43 verified candidates): boot-jars allow-list soong fork →
+  sm8850 `domain.te` vndr fork → `cameraserver` R4-revert rebuild (verify 8K still records) → new-golden tracking →
+  occe service (quality) → integration build + deferred flash gates. **The freeze is NOT fixed in v2.3** (gated on
+  the new golden + a user-in-loop capture).

@@ -7,7 +7,7 @@ symptom: "preview freeze (frame-1 stall)"
 path_nodes: [D2, C6, D3]
 decisive_probe: "probe_aec_hdrdetect.js force +0x48; perfetto working baseline (G4)"
 characterization: PARTIAL   # documented entire-pipeline freeze NOT reproducing on v2.x (general preview live 2026-06-25); see UPDATE
-conviction: OPEN             # this (documented) freeze effectively resolved on v2.x; a DISTINCT narrow post-capture/portrait/selfie freeze is the current symptom (uncharacterized) — see UPDATE
+conviction: OPEN             # this (documented) freeze effectively resolved on v2.x; the DISTINCT narrow post-capture/portrait/selfie freeze is now CHARACTERIZED as an app-side bokeh-render stall (root INFERRED, not convicted) — see UPDATE 2026-06-25b
 updated: 2026-06-25
 ---
 
@@ -46,3 +46,40 @@ buffer release gate / release contract). See `../data/D2-hal-fill-aps.md`, `../c
   not a missing lib. BUT the repo's "upcall OBSERVED firing on the OOS golden ~7-9/s" is **provenance-defective** —
   that golden frida probe crashed at Java-hook-install before logging any upcall. Downgrade R1 status:
   RE-confirmed-present but per-frame firing **runtime-DARK** (not observed), not "OBSERVED."
+
+## UPDATE (2026-06-25b) — the narrow post-capture portrait-selfie freeze, CHARACTERIZED (app-side bokeh-render stall)
+
+Live freeze captured on-device (CPH2747, app pid 18654, `debuggerd -b` + `logcat -b all`, SELinux permissive).
+**characterization: PARTIAL · conviction: OPEN** (root INFERRED, not convicted).
+
+- **Locus = the app-side bokeh render, not the HAL.** During the ~13 s freeze, `OplusBlurPreviewJNI` (the OCCE
+  single-portrait AISEG bokeh render, `OPLUS_SinglePortraitPreview AISEG V2.0.1.8`) goes from ~400–490 log-lines/s
+  to **zero for ~13 s**, then resumes. `PreviewGLThread` is parked in **`onDrawFrame → … → java.lang.Thread.sleep`**
+  (a sleep-retry loop; `com.oplus.camera.common.gl.b0.c` = GLThread.java:845) waiting for a bokeh result.
+- **All bokeh producers are IDLE during the freeze (not busy, not hung):** `BlurPreviewHand` (Looper `pollOnce`),
+  the QNN-HTP segmentation thread (`/odm/lib64/libQnnHtp.so` → `pthread_cond_wait`), and `previewManagerRoutine+1560`
+  (`libAlgoProcess.so` → `pthread_cond_wait`, command queue empty). Main/UI thread idle in `nativePollOnce`. So this
+  is **NOT a deadlock and NOT a UI-thread hang** — it is a producer-less stall.
+- **The HAL stays HEALTHY through the freeze:** realtime preview `isRealTime 1` at 29 fps + offline reprocess
+  `OplusOfflineReprocess0_OFE1` (`IsCaptureRequest 1`) at ~58/s, continuous; `MotionDetection` consumes preview
+  frames at ~30/s the whole time. Frames are delivered — only the **bokeh-render pipeline stops being driven** after
+  a capture. Self-recovers ~13 s (a watchdog/timeout cadence); stacks longer when captures pile up.
+- **INFERRED ROOT (not convicted):** a **missing/late post-capture "resume bokeh" trigger** into the app bokeh
+  pipeline — after a snapshot, the per-frame bokeh seg→render chain is not re-driven for ~13 s. No buildable fix is
+  located; no overlay fix was validated.
+- **REFUTED this session, with evidence (do NOT re-chase without new data):** R4 op_mode clobber (front op_mode
+  reads `0x8001` on-device, correct); face-beauty (freezes with AND without the filter); APS
+  `pfnAPSMemHWAcquire/Release` NULL (fires 02:02:26, ~43 s *before* the 02:03:09+ freeze — see
+  `../../re-notes/aps-metadata-buffer-init-RE.md`); bokeh `SDK_FAILURE`/`mInit failed` (session-start transients);
+  NCS gyro `hNCSDataHandle 0x0` (constant ~87/s, **present on the OOS golden too** → non-divergent, see
+  `../facilitation/E5-ncs-sensor-bridge.md`); DSP/QNN hang (the QNN-HTP thread is idle).
+- **OOS golden INCONCLUSIVE for the resume handoff:** the golden store lacks a front+portrait capture, masks
+  app-side JNI tags, and self-terminates ~4 s post-shutter. Confirmed matching OOS↔LOS: op_mode `0x8001` + OFE
+  `featuretype 48`.
+- **DECISIVE NEXT (investigation gate):** a **NEW full-verbose front-portrait OOS golden** — no SENSOR/NCS log
+  mask, ~20 s post-capture window — plus a **user-driven live selfie-portrait capture** (autonomous synthetic
+  input does NOT actuate capture on this build: `input tap` + `KEYCODE_CAMERA` left DCIM count unchanged; and the
+  bokeh render only engages with a live subject in frame). That single artifact pins where stock fires the
+  post-capture resume that LOS drops/delays, and also unblocks the aps-metadata + E5-NCS divergence questions.
+- **Related (uncharacterized):** PHOTO-mode selfie-flip UI freeze — user-reported, no trace yet; likely the same
+  app-side bokeh/GL resume family.
