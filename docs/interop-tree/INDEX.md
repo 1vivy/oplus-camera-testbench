@@ -37,6 +37,7 @@ CONTROL (settings/params/vendor-tags ↓)        DATA (buffers/metadata ↓)
 FACILITATION (what OUR PORT provides — root-determined by the dodge oracle)
   E1 stubs (oplus-camera-stubs / oplus-fwk)         E3 toggles / config (camxoverridesettings, props, overlays, vintf)
   E2 /system framework edits (av / base / native)   E4 sepolicy + linker namespace (public.libraries, ld.config, .te)
+  E5 NCS sensor bridge (gyro/accel/OIS → CamX GME / reprocess EIS) — feature facilitation, non-divergent on golden
 
 cross-edges (control shapes data): C5→D2 (fusion) · C3.beforeConfigureStreamsLocked→D1/D2 (8K) · C6.hdr_detected→D4 (EDR)
 facilitation roots feed the planes: E1→C1/C2/C3 · E2→C2/C3/D3/D4 · E3→C4/C5 · E4→D1/C4
@@ -83,6 +84,7 @@ goal is to *record how it is plumbed* — characterize it (observe), leave convi
 | E2 /system fwk edits | facilitation | CHARACTERIZED | **CONVICTED** | high | av/0001 ext factory NOT applied (G5 layer absent → #8/#4); base/0001 JNI bridge applied+effective (#7 refuted) |
 | E3 toggles/config | facilitation | CHARACTERIZED | SUPPORTED | med | G3 stock `dump_camxsettings.js` to read SHDR `+0x6a28`/`+0x6a18`; confirm shipping the key flips #2 rc=−2→0 |
 | E4 sepolicy/namespace | facilitation | CHARACTERIZED | **REFUTED** | high | namespace theory refuted by oracle; residual G5 runtime confirm; #5 re-homed at D1 (consumer-side lock-math) |
+| E5 NCS sensor bridge | facilitation | UNCHARACTERIZED | OPEN | low | GME `hNCSDataHandle 0x0` (~87/s) on reprocess — **NON-DIVERGENT** (OOS golden shows identical, both cams); feature facilitation for reprocess EIS, NOT the freeze → no R-row (forward F5) |
 
 ## Symptom → path map (each symptom is a branch: crash-site → … → **OUT to its facilitation root**)
 > Paths now terminate at the **facilitation root** — the **F-plane node** under `../facilitation/F*` (the

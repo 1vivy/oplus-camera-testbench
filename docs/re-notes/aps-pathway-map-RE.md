@@ -45,6 +45,8 @@ math authority = `libcamxexternalformatutils.so` `CamxFormatUtil_{GetScanline,Ge
 - A4 `camApsBufferFromWindow` (0x1cb00c)/`camApsWindowConnect` (0x1cc088): Surface-dequeue import = **PREVIEW path**.
   RULE-OUT: 0× during a still capture ⇒ window-import not the photo path.
 - A5 `camApsMemHardwareAllocate` (0x1cd168)→`APSMemTrace::HardwareBuff::allocate`: APS-internal scratch AHBs. UNTESTED.
+  **The result-METADATA sibling: `gAPSOps.pfnAPSMemHW{Acquire,Release}` are NULL in the app/OCS-SDK consumer process on
+  LOS (`ApsTotalResult_build/destroyMetadataBufferPtr`, `getMetaValue` res −2) — see `aps-metadata-buffer-init-RE.md`.**
 - A6 `camApsAllocION` (0x1c7b34)/`APSRefFrameSelector::enableDmaBufferPool` (0x3ac67c): ION RefFrame DMA pool.
   **UNTESTED, candidate** — ref-frame geometry set here for turbo/hybrid-raw fusion.
 ### (B) geometry QUERY

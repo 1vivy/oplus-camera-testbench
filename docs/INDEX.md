@@ -61,7 +61,7 @@ nodes organised as a navigable attribution graph. **Do not rename this directory
 | `REFUTED-LOG.md` | Log of refuted hypotheses (anti-evidence archive) |
 | `control/` | Control-flow nodes (C1–C6: app OCS SDK → cameraserver → HAL → CamX/CHI) |
 | `data/` | Data-flow nodes (D1–D4: gralloc/CamxFormat → HAL fill → ImageReader → SF/EDR) |
-| `facilitation/` | Facilitation nodes (E1–E4: stubs / system-framework / toggles / sepolicy) |
+| `facilitation/` | Facilitation nodes (E1–E5: stubs / system-framework / toggles / sepolicy / NCS-sensor-bridge) |
 | `symptoms/` | Symptom nodes (S1–S8: preview freeze, no-JPEG, overexposure, copyMetadata, P010, strlennull, getOplusHwBuffer, 8K) |
 
 ### `docs/re-notes/`
@@ -83,6 +83,7 @@ of a specific binary, symbol, or ABI, linked from `los-impl/` blocked rows.
 | `oem-binder-ontransact-RE.md` | OEM `onTransact` binder map (doc-48 Depth-1/Depth-2, R4) |
 | `oem-ext-depth2-lifecycle-RE.md` | R4 Depth-2 hook lifecycle/dispatch RE — WIRED→FIXED (op_mode clobber, `a536f0a481`) |
 | `cameraserver-static-link-build-traps.md` | cameraserver static-link + ccache stale-object + adb-remount traps (load-bearing for ALL frameworks/av work) |
+| `aps-metadata-buffer-init-RE.md` | APS result metadata-buffer HW-mem ops (`gAPSOps.pfnAPSMemHW{Acquire,Release}` NULL, OCS-SDK consumer) — side-finding, NOT the freeze |
 
 ---
 
