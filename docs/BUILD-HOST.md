@@ -30,6 +30,15 @@ tmux new-session -d -s build "bash /srv/android/scripts/build.sh bacon >> /srv/a
 ```
 `build.sh` sources env, gates `m nothing`, builds at **full -j** (swap-backed), prints `build_rc`.
 
+**Stage + retrieve the artifact.** `mka bacon` writes to `out/target/product/infiniti/lineage-23.2-*.zip`.
+Promote the freshest one into the artifact store with the version convention, then pull it to the Mac:
+```
+bash /srv/android/scripts/stage-artifact.sh <ver>      # e.g. v2.4 -> artifacts/lineage-23.2-v2.4-infiniti.zip (+ .sha256)
+oplus-logs artifact ls                                  # confirm it appears
+oplus-logs artifact pull lineage-23.2-<ver>-infiniti.zip   # -> $ARTDIR on the Mac (default ~/oplus-artifacts)
+```
+`stage-artifact.sh` refuses to overwrite an existing version unless given `-f`.
+
 ## Build-launch traps (learned the hard way — check before scripting a build)
 
 These cost real cycles this session; a build wrapper that ignores them fails at step 0.
