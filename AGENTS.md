@@ -6,6 +6,9 @@
 > sync, build, overlay-test, retrieve, ledger). It routes to the runbooks in `docs/` (`SYNC`, `BUILD-HOST`,
 > `OVERLAY`, `LEDGER-SCHEMA`, `PATH-COUPLING`). Build-host ops truth: `oplus-logs build-doc`.
 
+> **Quick reference → [`CLAUDE.md`](CLAUDE.md)** — always-loaded workflow glossary and cheatsheet. Treat it
+> as a compact companion to `WORKFLOW.md`; this `AGENTS.md` remains the authoritative constraint set.
+
 ## Purpose
 
 `oplus-final` is the **clean reference + capture harness** for porting the Oplus/OnePlus camera stack
